@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "vscjava.vscode-java-pack",
+    "vmware.vscode-spring-boot",
+    "vscjava.vscode-spring-boot-dashboard",
+    "ms-python.python",
+    "ms-azuretools.vscode-docker",
+    "ms-ossdata.vscode-pgsql"
+  ]
+}

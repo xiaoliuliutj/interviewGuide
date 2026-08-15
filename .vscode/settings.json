@@ -1,0 +1,21 @@
+{
+  "java.jdt.ls.java.home": "${workspaceFolder}/.tooling/jdk-21",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "${workspaceFolder}/.tooling/jdk-21",
+      "default": true
+    }
+  ],
+  "maven.executable.path": "${workspaceFolder}/scripts/mvnw.cmd",
+  "java.import.maven.enabled": true,
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "spring-boot.ls.java.home": "${workspaceFolder}/.tooling/jdk-21",
+  "python.defaultInterpreterPath": "D:\\Anaconda\\envs\\inter-guide\\python.exe",
+  "python.terminal.activateEnvironment": true,
+  "files.exclude": {
+    "**/.tooling": true,
+    "**/target": true,
+    "**/__pycache__": true
+  }
+}

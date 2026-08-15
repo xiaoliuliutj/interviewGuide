@@ -1,0 +1,9 @@
+# Downloaded local toolchains
+.tooling/
+
+# Editor and runtime output
+.vscode/*.log
+target/
+__pycache__/
+.pytest_cache/
+.env

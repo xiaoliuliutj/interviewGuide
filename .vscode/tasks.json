@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "验证本地开发环境",
+      "type": "shell",
+      "command": "& '${workspaceFolder}\\.tooling\\jdk-21\\bin\\java.exe' -version; & '${workspaceFolder}\\scripts\\mvnw.cmd' -version; & 'D:\\Anaconda\\envs\\inter-guide\\python.exe' --version",
+      "windows": {
+        "command": "& '${workspaceFolder}\\.tooling\\jdk-21\\bin\\java.exe' -version; & '${workspaceFolder}\\scripts\\mvnw.cmd' -version; & 'D:\\Anaconda\\envs\\inter-guide\\python.exe' --version"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
