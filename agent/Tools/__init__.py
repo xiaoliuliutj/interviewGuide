@@ -1,1 +1,1 @@
-"""Concrete tool implementations hidden behind the Agent ToolGateway."""
+"""Agent 可调用的文档与网页工具实现。"""

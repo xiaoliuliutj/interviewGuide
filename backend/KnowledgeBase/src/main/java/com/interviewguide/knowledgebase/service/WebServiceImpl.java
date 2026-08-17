@@ -76,7 +76,8 @@ public class WebServiceImpl implements WebService {
             if (!(item instanceof Map<?, ?> rawPage)) {
                 throw new IllegalStateException("Agent 网页导入响应包含无效页面");
             }
-            Map<String, Object> page = copyPage(rawPage);
+            Map<String, Object> page = new LinkedHashMap<>();
+            rawPage.forEach((key, value) -> page.put(String.valueOf(key), value));
             String agentKnowledgeBaseId = requireString(page, "knowledgeBaseId");
             KnowledgeBaseEntity entity = knowledgeBaseMapper.selectOne(
                     Wrappers.<KnowledgeBaseEntity>lambdaQuery()
@@ -224,15 +225,7 @@ public class WebServiceImpl implements WebService {
         return response.data();
     }
 
-    /**
-     * 将 HTTP 反序列化得到的泛型 Map 转换为可安全读取的字符串键映射。
-     * 不在业务逻辑中依赖运行时 Map 的泛型擦除结果。
-     */
-    private Map<String, Object> copyPage(Map<?, ?> page) {
-        Map<String, Object> result = new LinkedHashMap<>();
-        page.forEach((key, value) -> result.put(String.valueOf(key), value));
-        return result;
-    }
+
 
     /**
      * 获取 Agent 返回的必要文本字段，确保下载、删除和异步状态对账可以关联同一知识库。

@@ -1,14 +1,14 @@
-"""将指定 Agent 知识库标记为系统知识库。"""
+"""将指。"Agent 知识库标记为系统知识库。"""
 
 import argparse
 import asyncio
 
-from agent.Common.Configs.settings import AgentSettings
-from agent.Common.Postgres.postgres_service import PostgresService
+from agent.Common.Configs.AgentSettings import AgentSettings
+from agent.Common.Postgres.PostgresService import PostgresService
 
 
 async def markSystemKnowledgeBase(knowledgeBaseId: str) -> None:
-    """校验目标存在且已就绪后，将其切换为 SYSTEM，后续由 Skill 白名单控制检索范围。"""
+    """校验目标存在且已就绪后，将其切换。"SYSTEM，后续由 Skill 白名单控制检索范围。"""
     postgresService = PostgresService(AgentSettings.from_environment())
     try:
         pool = await postgresService.getPool()

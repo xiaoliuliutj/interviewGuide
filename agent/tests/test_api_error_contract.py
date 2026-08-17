@@ -1,7 +1,7 @@
-from agent.Common.Exceptions.agent_exception import LlmTimeoutError
-from agent.Common.results import AgentResultStatus
-from agent.api.application import createFailureResponse
-from agent.api.contracts import AgentOperationRequest
+from agent.Common.Exceptions.AgentException import LlmTimeoutError
+from agent.Common.AgentResults import AgentResultStatus
+from agent.Api.LLMApi import createFailureResponse
+from agent.Common.AgentRequest import AgentOperationRequest
 
 
 def testFailureResponseKeepsAgentCodeAndChineseMessage() -> None:
@@ -20,7 +20,7 @@ def testFailureResponseKeepsAgentCodeAndChineseMessage() -> None:
     response = createFailureResponse(request, LlmTimeoutError("provider timeout"))
     assert response.status_code == AgentResultStatus.LLM_REQUEST_TIMEOUT
     assert response.error is not None
-    assert response.error.message == "大模型请求超时"
+    assert response.error.message == "大模型请求超。"
     assert response.error.retryable is True
 
 

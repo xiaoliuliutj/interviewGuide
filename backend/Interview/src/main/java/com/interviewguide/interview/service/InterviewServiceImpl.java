@@ -2,7 +2,6 @@ package com.interviewguide.interview.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.interviewguide.agent.dto.AgentOperationRequest;
 import com.interviewguide.agent.dto.AgentOperationResponse;
@@ -80,15 +79,24 @@ public class InterviewServiceImpl implements InterviewService {
             throw new IllegalStateException("当前用户存在未完成面试，请先结束或关闭后再开始新的面试");
         }
         String sessionId = UUID.randomUUID().toString();
-        String resumeId = requiredText(request, "resumeId");
-        String targetRole = requiredText(request, "targetRole");
-        String difficulty = optionalText(request, "desiredDifficulty", "MEDIUM");
+        Object resumeIdValue = request.get("resumeId");
+        Object targetRoleValue = request.get("targetRole");
+        if (!(resumeIdValue instanceof String resumeId) || resumeId.isBlank()
+                || !(targetRoleValue instanceof String targetRole) || targetRole.isBlank()) {
+            throw new IllegalArgumentException("缺少简历或目标岗位信息");
+        }
+        resumeId = resumeId.trim();
+        targetRole = targetRole.trim();
+        Object difficultyValue = request.get("desiredDifficulty");
+        String difficulty = difficultyValue instanceof String value && !value.isBlank()
+                ? value.trim() : "MEDIUM";
         InterviewSessionEntity entity = new InterviewSessionEntity();
         entity.setSessionId(sessionId);
         entity.setUserId(userId);
         entity.setResumeId(resumeId);
         entity.setTargetRole(targetRole);
-        entity.setInterviewDirection(optionalText(request, "interviewDirection", null));
+        Object directionValue = request.get("interviewDirection");
+        entity.setInterviewDirection(directionValue instanceof String value && !value.isBlank() ? value.trim() : null);
         entity.setDifficulty(difficulty);
         // 先持久化创建保留状态，使 PostgreSQL 的部分唯一索引能够原子阻止并发创建第二场未完成面试。
         entity.setStatus("CREATING");
@@ -137,8 +145,14 @@ public class InterviewServiceImpl implements InterviewService {
         if (!"ACTIVE".equals(entity.getStatus()) && !"PAUSED".equals(entity.getStatus())) {
             throw new IllegalStateException("当前面试不允许继续回答");
         }
-        String answer = requiredText(request, "answer");
-        String runId = optionalText(request, "runId", UUID.randomUUID().toString());
+        Object answerValue = request.get("answer");
+        if (!(answerValue instanceof String answer) || answer.isBlank()) {
+            throw new IllegalArgumentException("缺少回答内容");
+        }
+        answer = answer.trim();
+        Object runIdValue = request.get("runId");
+        String runId = runIdValue instanceof String value && !value.isBlank()
+                ? value.trim() : UUID.randomUUID().toString();
         AgentOperationRequest agentRequest = createRequest(
                 userId, sessionId, runId, promptService.render("Interview/answer.txt", Map.of("answer", answer)),
                 Map.of("resumeId", entity.getResumeId()), entity.getStateVersion(), "conversation", null
@@ -394,17 +408,31 @@ public class InterviewServiceImpl implements InterviewService {
         if (data == null) {
             return;
         }
-        entity.setCurrentQuestion(text(data.get("content"), entity.getCurrentQuestion()));
-        Map<String, Object> progress = map(data.get("progress"));
-        entity.setStatus(text(progress.get("status"), entity.getStatus()));
-        entity.setCurrentStage(text(progress.get("currentStage"), entity.getCurrentStage()));
-        entity.setCurrentTopic(text(progress.get("currentTopic"), entity.getCurrentTopic()));
-        entity.setIssuedQuestionCount(number(progress.get("totalQuestionCount"), entity.getIssuedQuestionCount()));
-        entity.setPrimaryQuestionCount(number(progress.get("currentPrimaryQuestionCount"), entity.getPrimaryQuestionCount()));
-        entity.setTotalPrimaryQuestionCount(number(progress.get("totalPrimaryQuestionCount"), entity.getTotalPrimaryQuestionCount()));
-        entity.setFollowupCount(number(progress.get("currentFollowupCount"), entity.getFollowupCount()));
-        entity.setTotalQuestions(number(progress.get("questionBudget"), entity.getTotalQuestions() == 0 ? 20 : entity.getTotalQuestions()));
-        Map<String, Object> evaluation = map(data.get("finalEvaluation"));
+        Object contentValue = data.get("content");
+        if (contentValue instanceof String value && !value.isBlank()) {
+            entity.setCurrentQuestion(value);
+        }
+        Map<String, Object> progress = data.get("progress") instanceof Map<?, ?> rawProgress
+                ? objectMapper.convertValue(rawProgress, Map.class) : Map.of();
+        Object statusValue = progress.get("status");
+        if (statusValue instanceof String value && !value.isBlank()) entity.setStatus(value);
+        Object stageValue = progress.get("currentStage");
+        if (stageValue instanceof String value && !value.isBlank()) entity.setCurrentStage(value);
+        Object topicValue = progress.get("currentTopic");
+        if (topicValue instanceof String value && !value.isBlank()) entity.setCurrentTopic(value);
+        Object issuedValue = progress.get("totalQuestionCount");
+        if (issuedValue instanceof Number value) entity.setIssuedQuestionCount(value.intValue());
+        Object primaryValue = progress.get("currentPrimaryQuestionCount");
+        if (primaryValue instanceof Number value) entity.setPrimaryQuestionCount(value.intValue());
+        Object totalPrimaryValue = progress.get("totalPrimaryQuestionCount");
+        if (totalPrimaryValue instanceof Number value) entity.setTotalPrimaryQuestionCount(value.intValue());
+        Object followupValue = progress.get("currentFollowupCount");
+        if (followupValue instanceof Number value) entity.setFollowupCount(value.intValue());
+        Object budgetValue = progress.get("questionBudget");
+        if (budgetValue instanceof Number value) entity.setTotalQuestions(value.intValue());
+        else if (entity.getTotalQuestions() == 0) entity.setTotalQuestions(20);
+        Map<String, Object> evaluation = data.get("finalEvaluation") instanceof Map<?, ?> rawEvaluation
+                ? objectMapper.convertValue(rawEvaluation, Map.class) : Map.of();
         if (!evaluation.isEmpty()) {
             try {
                 entity.setFinalEvaluationJson(objectMapper.writeValueAsString(evaluation));
@@ -426,9 +454,12 @@ public class InterviewServiceImpl implements InterviewService {
         turn.setStage(entity.getCurrentStage());
         turn.setQuestion(entity.getCurrentQuestion());
         turn.setAnswer(answer);
-        Map<String, Object> evaluation = map(data.get("evaluation"));
-        turn.setEvaluationSummary(text(evaluation.get("summary"), null));
-        turn.setScore(integer(evaluation.get("score")));
+        Map<String, Object> evaluation = data.get("evaluation") instanceof Map<?, ?> rawEvaluation
+                ? objectMapper.convertValue(rawEvaluation, Map.class) : Map.of();
+        Object summaryValue = evaluation.get("summary");
+        turn.setEvaluationSummary(summaryValue instanceof String value && !value.isBlank() ? value : null);
+        Object scoreValue = evaluation.get("score");
+        turn.setScore(scoreValue instanceof Number value ? value.intValue() : null);
         turn.setCreatedAt(Instant.now());
         interviewTurnMapper.insert(turn);
     }
@@ -470,58 +501,14 @@ public class InterviewServiceImpl implements InterviewService {
         view.put("primaryQuestionCount", entity.getPrimaryQuestionCount());
         view.put("totalPrimaryQuestionCount", entity.getTotalPrimaryQuestionCount());
         view.put("followupCount", entity.getFollowupCount());
-        view.put("finalEvaluation", parseJsonObject(entity.getFinalEvaluationJson()));
+        try {
+            view.put("finalEvaluation", entity.getFinalEvaluationJson() == null || entity.getFinalEvaluationJson().isBlank()
+                    ? Map.of() : objectMapper.readValue(entity.getFinalEvaluationJson(), Map.class));
+        } catch (JsonProcessingException error) {
+            view.put("finalEvaluation", Map.of());
+        }
         view.put("createdAt", entity.getCreatedAt());
         view.put("updatedAt", entity.getUpdatedAt());
         return view;
-    }
-
-    /** 读取字符串请求字段并在缺失时给出业务错误。 */
-    private String requiredText(Map<String, Object> request, String key) {
-        String value = optionalText(request, key, null);
-        if (value == null) {
-            throw new IllegalArgumentException("缺少字段：" + key);
-        }
-        return value;
-    }
-
-    /** 读取可选文本字段并统一空白语义。 */
-    private String optionalText(Map<String, Object> request, String key, String fallback) {
-        Object value = request.get(key);
-        return value instanceof String text && !text.isBlank() ? text.trim() : fallback;
-    }
-
-    /** 将 Agent 进度中的数字转换为 Java 展示字段。 */
-    private int number(Object value, int fallback) {
-        return value instanceof Number number ? number.intValue() : fallback;
-    }
-
-    /** 将评价分数字段转换为可空整数。 */
-    private Integer integer(Object value) {
-        return value instanceof Number number ? number.intValue() : null;
-    }
-
-    /** 将任意响应文本字段转换为非空字符串，否则保留旧值。 */
-    private String text(Object value, String fallback) {
-        return value instanceof String text && !text.isBlank() ? text : fallback;
-    }
-
-    /** 将 Agent 的嵌套 data 安全转换为 Map，避免前端响应解析因类型漂移崩溃。 */
-    private Map<String, Object> map(Object value) {
-        return value instanceof Map<?, ?> raw
-                ? objectMapper.convertValue(raw, new TypeReference<Map<String, Object>>() { })
-                : Map.of();
-    }
-
-    /** 将最终评价 JSON 还原为前端可直接使用的对象。 */
-    private Map<String, Object> parseJsonObject(String value) {
-        if (value == null || value.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(value, new TypeReference<Map<String, Object>>() { });
-        } catch (JsonProcessingException error) {
-            return Map.of();
-        }
     }
 }

@@ -1,3 +1,3 @@
-from agent.Common.RabbitMQ.rabbitmq_service import RabbitMqService
+from agent.Common.RabbitMQ.RabbitMqService import RabbitMqService
 
 __all__ = ["RabbitMqService"]

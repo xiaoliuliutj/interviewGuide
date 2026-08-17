@@ -1,12 +1,12 @@
 import asyncio
 import json
 
-from agent.Agents.models import AgentContext, SkillDefinition, ToolCall
-from agent.Common.results import AgentTaskType
-from agent.Tools.tool_service import ToolService
-from agent.Workflows.interview_models import InterviewSessionState, InterviewStage
-from agent.Workflows.interview_workflow import InterviewWorkflow
-from agent.api.contracts import AgentOperationRequest
+from agent.Common.AgentModels import AgentContext, SkillDefinition, ToolCall
+from agent.Common.AgentResults import AgentTaskType
+from agent.Tools.toolsService import ToolService
+from agent.WorkFlows.Interview.interviewModels import InterviewSessionState, InterviewStage
+from agent.WorkFlows.Interview.interviewWorkflow import InterviewWorkflow
+from agent.Common.AgentRequest import AgentOperationRequest
 from agent.tests.test_workflow_core import buildPlan
 
 
@@ -29,7 +29,7 @@ def buildRequest() -> AgentOperationRequest:
 
 def testParseDocumentToolUsesRegisteredHandler() -> None:
     """验证字符串工具名会通过注册表映射到真实文档解析函数，而不是进入占位异常。"""
-    toolService = ToolService(object(), object())
+    toolService = ToolService()
     context = AgentContext(
         request=buildRequest(),
         skill=SkillDefinition(
@@ -40,7 +40,7 @@ def testParseDocumentToolUsesRegisteredHandler() -> None:
     result = asyncio.run(toolService.executeTool(
         ToolCall(
             name="parseDocument",
-            arguments={"content": "# 技术栈\nJava 和 Spring Boot", "fileName": "resume.md"},
+        arguments={"content": "# \u6280\u672f\u6808\nJava \u4e0e Spring Boot", "fileName": "resume.md"},
         ),
         context,
     ))
@@ -50,7 +50,7 @@ def testParseDocumentToolUsesRegisteredHandler() -> None:
 
 
 def testExplicitCloseDeletesWorkflowWithoutEvaluation() -> None:
-    """验证显式关闭只删除未完成会话并返回关闭确认，不触发 LLM 总结或长期记忆写入。"""
+    """验证显式关闭只删除未完成会话并返回关闭确认，不触。"LLM 总结或长期记忆写入。"""
     state = InterviewSessionState(
         sessionId="session-1",
         userId="user-1",

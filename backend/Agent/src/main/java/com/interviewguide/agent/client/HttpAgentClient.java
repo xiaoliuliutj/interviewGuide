@@ -36,7 +36,9 @@ public class HttpAgentClient implements AgentClient {
     public AgentOperationResponse execute(AgentOperationRequest request) {
         try {
             return restClient.post()
-                    .uri("/internal/v1/runs")
+                    .uri("capability".equals(request.mode())
+                            ? "/internal/v1/capabilities"
+                            : "/internal/v1/runs")
                     .body(request)
                     .retrieve()
                     .body(AgentOperationResponse.class);

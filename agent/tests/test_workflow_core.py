@@ -3,8 +3,8 @@ import asyncio
 
 import pytest
 
-from agent.RAG.document_parser import DocumentParser
-from agent.Workflows.interview_models import (
+from agent.RAG.ragDocumentParser import DocumentParser
+from agent.WorkFlows.Interview.interviewModels import (
     InterviewAction,
     InterviewEvaluation,
     InterviewPlan,
@@ -14,11 +14,11 @@ from agent.Workflows.interview_models import (
     InterviewStage,
     WorkflowIntentDecision,
 )
-from agent.Workflows.interview_workflow import InterviewWorkflow
-from agent.Workflows.workflow_runtime import WorkflowRuntime
-from agent.api.contracts import AgentOperationRequest
-from agent.Memory.memory_models import LongTermMemorySnapshot
-from agent.Workflows.resume_workflow import ResumeWorkflow
+from agent.WorkFlows.Interview.interviewWorkflow import InterviewWorkflow
+from agent.WorkFlows.workflowService import WorkflowService
+from agent.Common.AgentRequest import AgentOperationRequest
+from agent.Memory.memoryModels import LongTermMemorySnapshot
+from agent.WorkFlows.Resume.resumeWorkflow import ResumeWorkflow
 
 
 def buildPlan() -> InterviewPlan:
@@ -91,7 +91,7 @@ def testTransitionIntoSummaryBecomesEndInterview() -> None:
         targetRole="Java后端",
         plan=buildPlan(),
         currentStage=InterviewStage.CODING,
-        currentQuestion="算法题",
+        currentQuestion="算法。",
         stageQuestionCounts={InterviewStage.CODING.value: 2},
     )
     evaluation = InterviewEvaluation(
@@ -109,7 +109,7 @@ def testTransitionIntoSummaryBecomesEndInterview() -> None:
 
 
 def testDocxParserExtractsHeadingAndText() -> None:
-    """验证简历 DOCX 会被真实解析为文本，而不是作为未实现格式被跳过。"""
+    """验证简。"DOCX 会被真实解析为文本，而不是作为未实现格式被跳过。"""
     from docx import Document
 
     document = Document()
@@ -128,7 +128,7 @@ def testNaturalLanguageRouterUsesRestrictedWorkflowSchema() -> None:
         async def requestJson(self, messages, temperature):
             return {"workflow": "INTERVIEW", "intent": "START_INTERVIEW", "confidence": 0.9}
 
-    runtime = WorkflowRuntime(FakeLlm(), None, None, None, None, None)
+    runtime = WorkflowService(FakeLlm(), None, None, None, None, None)
     request = AgentOperationRequest.model_validate({
         "context": {
             "apiVersion": "v1",
@@ -138,7 +138,7 @@ def testNaturalLanguageRouterUsesRestrictedWorkflowSchema() -> None:
             "conversationId": "conversation-1",
             "timestamp": "2026-08-17T10:00:00Z",
         },
-        "prompt": "开始一次 Java 后端模拟面试。",
+            "prompt": "???? Java ???????",
     })
     decision = asyncio.run(runtime.resolveWorkflow(request))
     assert decision.workflow == "INTERVIEW"
@@ -180,7 +180,7 @@ def testInterviewInitializationPersistsOnlyAfterPlanValidation() -> None:
             self.committed = state
 
         async def failRun(self, sessionId, runId, responseJson):
-            raise AssertionError("初始化不应进入失败路径")
+            raise AssertionError("初始化不应进入失败路。")
 
     repository = FakeRepository()
     workflow = InterviewWorkflow(FakeLlm(), FakeMemoryService(), None, repository)
@@ -214,7 +214,7 @@ def testInterviewAnswerFollowsEvaluationRouteThenQuestionGeneration() -> None:
                     "strengths": ["基础概念正确"],
                     "weaknesses": ["缺少拒绝策略细节"],
                 },
-                {"action": "NEXT_QUESTION", "nextTopic": "线程池拒绝策略"},
+                {"action": "NEXT_QUESTION", "nextTopic": "线程池拒绝策。"},
                 {"question": "请说明线程池拒绝策略的适用场景。"},
             ]
 
@@ -253,7 +253,7 @@ def testInterviewAnswerFollowsEvaluationRouteThenQuestionGeneration() -> None:
         targetRole="Java后端",
         plan=buildPlan(),
         currentStage=InterviewStage.FUNDAMENTAL,
-        currentTopic="线程池",
+        currentTopic="线程。",
         currentQuestion="请说明线程池核心参数。",
         stateVersion=1,
         primaryQuestionCount=1,
@@ -282,7 +282,7 @@ def testInterviewAnswerFollowsEvaluationRouteThenQuestionGeneration() -> None:
 
 
 def testResumeWorkerParsesThenEvaluatesAndPersistsMemory() -> None:
-    """验证简历异步 worker 按“文件解析→LLM评估→长期记忆”顺序执行真实闭环。"""
+    """验证简历异。"worker 按“文件解析→LLM评估→长期记忆”顺序执行真实闭环。"""
     class FakeLlm:
         async def requestJson(self, messages, temperature):
             return {
@@ -295,10 +295,10 @@ def testResumeWorkerParsesThenEvaluatesAndPersistsMemory() -> None:
                 "summary": "简历与目标岗位基本匹配。",
                 "strengths": ["项目经历清晰"],
                 "suggestions": ["补充量化结果"],
-                "issues": [{"question": "请补充职责边界", "priority": "MEDIUM", "suggestion": "明确个人贡献"}],
+                "issues": [{"question": "请补充职责边。", "priority": "MEDIUM", "suggestion": "明确个人贡献"}],
                 "technicalStack": ["Java"],
                 "technicalDepth": ["Spring"],
-                "careerPreferences": ["后端开发"],
+                "careerPreferences": ["后端开。"],
             }
 
     class FakeRepository:
@@ -328,7 +328,7 @@ def testResumeWorkerParsesThenEvaluatesAndPersistsMemory() -> None:
             self.completed = evaluation
 
         async def failJob(self, *values):
-            raise AssertionError("有效简历不应进入失败路径")
+            raise AssertionError("有效简历不应进入失败路。")
 
     class FakeMemory:
         async def saveResumeEvaluation(self, userId, resumeId, evaluation):

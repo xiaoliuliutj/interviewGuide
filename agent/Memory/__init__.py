@@ -1,1 +1,1 @@
-"""Concrete Agent memory implementations hidden behind MemoryGateway."""
+"""Agent 运行时使用的短期和长期记忆能力。"""

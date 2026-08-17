@@ -1,1 +1,1 @@
-"""Concrete RAG implementations hidden behind RagGateway."""
+"""Agent 运行时使用的知识检索与索引能力。"""

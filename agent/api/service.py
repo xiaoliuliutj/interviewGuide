@@ -1,13 +1,27 @@
 from typing import Any
 
-from agent.Agents.agent_loop import AgentLoop
+from agent.Agents.AgentLoop import AgentLoop
 import json
 
-from agent.Agents.models import AgentContext, AgentLoopCommand, ToolCall
-from agent.Common.Exceptions.agent_exception import AgentRequestContractError
-from agent.Common.results import AgentOperationResponse, AgentTaskType
-from agent.api.contracts import AgentOperationRequest
-from agent.Workflows.workflow_runtime import WorkflowRuntime
+from agent.Common.AgentModels import AgentContext, AgentLoopCommand, ToolCall
+from agent.Common.Exceptions.AgentException import AgentRequestContractError
+from agent.Common.AgentResults import AgentOperationResponse, AgentTaskType
+from agent.Common.AgentRequest import AgentOperationRequest
+from agent.WorkFlows.workflowService import WorkflowService
+from agent.Agents.AgentResponse import ResponseValidator
+from agent.Common.Configs.AgentSettings import AgentSettings
+from agent.Common.Postgres.PostgresService import PostgresService
+from agent.Common.RabbitMQ.RabbitMqService import RabbitMqService
+from agent.LLM.llmService import LlmService
+from agent.Memory.memoryEventWorker import MemoryEventWorker
+from agent.Memory.memoryService import MemoryService
+from agent.RAG.ragService import RagService
+from agent.Skills.skillsService import SkillService
+from agent.Tools.toolsService import ToolService
+from agent.WorkFlows.Interview.interviewRepository import InterviewWorkflowRepository
+from agent.WorkFlows.Interview.interviewWorkflow import InterviewWorkflow
+from agent.WorkFlows.Resume.resumeRepository import ResumeWorkflowRepository
+from agent.WorkFlows.Resume.resumeWorkflow import ResumeWorkflow
 
 
 class AgentApplicationService:
@@ -16,7 +30,7 @@ class AgentApplicationService:
     def __init__(
         self,
         agentLoop: AgentLoop,
-        workflowRuntime: WorkflowRuntime | None = None,
+        workflowRuntime: WorkflowService | None = None,
     ) -> None:
         """保存已经组装好的 Agent 运行时，避免 API 层创建领域服务。"""
         self.agentLoop = agentLoop
@@ -26,12 +40,12 @@ class AgentApplicationService:
         """关闭 Agent 内部持有的可释放资源。"""
         if self.workflowRuntime is not None:
             await self.workflowRuntime.close()
-        memoryGateway = getattr(self.agentLoop, "memoryGateway", None)
-        if memoryGateway is not None and hasattr(memoryGateway, "close"):
-            await memoryGateway.close()
-        ragGateway = getattr(self.agentLoop, "ragGateway", None)
-        if ragGateway is not None and hasattr(ragGateway, "close"):
-            await ragGateway.close()
+        memoryService = getattr(self.agentLoop, "memoryService", None)
+        if memoryService is not None and hasattr(memoryService, "close"):
+            await memoryService.close()
+        ragService = getattr(self.agentLoop, "ragService", None)
+        if ragService is not None and hasattr(ragService, "close"):
+            await ragService.close()
 
     async def dispatch(self, request: AgentOperationRequest) -> AgentOperationResponse:
         """校验通用请求并路由到对话 AgentLoop 或确定性能力。"""
@@ -56,43 +70,43 @@ class AgentApplicationService:
         request: AgentOperationRequest,
         parsedPayload: dict[str, Any],
     ) -> AgentOperationResponse:
-        """执行 RAG 文件管理等确定性能力，避免让 LLM 决定基础设施操作。"""
-        ragGateway = self.agentLoop.ragGateway
+        """执行 RAG 文件管理等确定性能力，避免。"LLM 决定基础设施操作。"""
+        ragService = self.agentLoop.ragService
         taskType = request.task_type
         if taskType == AgentTaskType.RAG_DOCUMENT_INDEXING:
-            data = await ragGateway.stageIndexDocument(parsedPayload)
+            data = await ragService.stageIndexDocument(parsedPayload)
             return self.createResponse(request, 100, "PROCESSING", data)
         if taskType == AgentTaskType.RAG_DOCUMENT_DELETION:
-            await ragGateway.deleteKnowledgeBase(
+            await ragService.deleteKnowledgeBase(
                 str(parsedPayload["knowledgeBaseId"]),
                 request.context.principal_id,
             )
             return self.createResponse(request, 101, "COMPLETED", None)
         if taskType == AgentTaskType.RAG_DOCUMENT_DOWNLOAD:
-            data = await ragGateway.downloadDocument(parsedPayload)
+            data = await ragService.downloadDocument(parsedPayload)
             return self.createResponse(request, 100, "COMPLETED", data)
         if taskType == AgentTaskType.RAG_DOCUMENT_INDEX_STATUS:
-            data = await ragGateway.getIndexStatus(parsedPayload)
+            data = await ragService.getIndexStatus(parsedPayload)
             return self.createResponse(request, 100, "COMPLETED", data)
         if taskType == AgentTaskType.URL_KNOWLEDGE_BASE_CRAWL:
-            data = await ragGateway.crawlUrlKnowledgeBase(parsedPayload)
+            data = await ragService.crawlUrlKnowledgeBase(parsedPayload)
             return self.createResponse(request, 100, "COMPLETED", data)
         if taskType == AgentTaskType.URL_KNOWLEDGE_BASE_IMPORT:
-            data = await ragGateway.importUrlKnowledgeBase(parsedPayload)
+            data = await ragService.importUrlKnowledgeBase(parsedPayload)
             return self.createResponse(request, 100, "PROCESSING", data)
         if taskType == AgentTaskType.URL_KNOWLEDGE_BASE_ARCHIVE:
-            data = await ragGateway.downloadUrlCrawlArchive(parsedPayload)
+            data = await ragService.downloadUrlCrawlArchive(parsedPayload)
             return self.createResponse(request, 100, "COMPLETED", data)
         if taskType in {AgentTaskType.WEB_PAGE_FETCH, AgentTaskType.WEBSITE_CRAWL}:
             toolName = "fetchWebPage" if taskType == AgentTaskType.WEB_PAGE_FETCH else "crawlWebPages"
-            skill = await self.agentLoop.skillGateway.resolveSkill(taskType)
+            skill = await self.agentLoop.skillsService.resolveSkill(taskType)
             context = AgentContext(request=request, skill=skill)
-            result = await self.agentLoop.toolGateway.executeTool(
+            result = await self.agentLoop.toolsService.executeTool(
                 ToolCall(name=toolName, arguments=parsedPayload),
                 context,
             )
             return self.createResponse(request, 100, "COMPLETED", json.loads(result.content))
-        raise AgentRequestContractError("Agent capability 未实现")
+        raise AgentRequestContractError("Agent capability 未实。")
 
     def parsePayload(self, request: AgentOperationRequest) -> dict[str, Any]:
         """把通用 data 与调用上下文合并为内部服务需要的 payload。"""
@@ -149,3 +163,35 @@ class AgentApplicationService:
             state_version=request.state_version,
             data=data,
         )
+
+
+def createApplicationService() -> AgentApplicationService:
+    """组装 AgentLoop、领域服务和工作流服务，。"HTTP 接口统一调用。"""
+    settings = AgentSettings.from_environment()
+    llmService = LlmService(settings)
+    memoryService = MemoryService(llmService)
+    ragService = RagService(llmService)
+    agentLoop = AgentLoop(
+        llmClient=llmService,
+        skillsService=SkillService(),
+        toolsService=ToolService(),
+        memoryService=memoryService,
+        ragService=ragService,
+        responseValidator=ResponseValidator(),
+    )
+    interviewRepository = InterviewWorkflowRepository(PostgresService(settings))
+    resumeRepository = ResumeWorkflowRepository(PostgresService(settings))
+    workflowService = WorkflowService(
+        llmService,
+        agentLoop,
+        InterviewWorkflow(llmService, memoryService, ragService, interviewRepository),
+        ResumeWorkflow(llmService, memoryService, resumeRepository),
+        interviewRepository,
+        resumeRepository,
+    )
+    return AgentApplicationService(agentLoop, workflowService)
+
+
+def createMemoryEventWorker() -> tuple[MemoryEventWorker, RabbitMqService]:
+    """创建记忆摘要事件消费者与。"RabbitMQ 服务实例。"""
+    return MemoryEventWorker(MemoryService()), RabbitMqService(AgentSettings.from_environment())

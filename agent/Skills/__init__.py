@@ -1,1 +1,1 @@
-"""Task-specific prompts and permissions used by AgentLoop through SkillGateway."""
+"""由 AgentLoop 使用的任务技能定义与权限范围。"""

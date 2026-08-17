@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: ${DOCKER_IMAGE_PREFIX:-}pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: interview_agent
       POSTGRES_USER: interview_agent
@@ -14,7 +14,7 @@ services:
       retries: 20
 
   redis:
-    image: redis:7
+    image: ${DOCKER_IMAGE_PREFIX:-}redis:7
     volumes:
       - redis-data:/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
       retries: 20
 
   rabbitmq:
-    image: rabbitmq:3-management
+    image: ${DOCKER_IMAGE_PREFIX:-}rabbitmq:3-management
     ports:
       - "15672:15672"
     healthcheck:
@@ -34,7 +34,11 @@ services:
       retries: 20
 
   agent:
-    build: ./agent
+    build:
+      context: ./agent
+      args:
+        PYTHON_IMAGE: ${DOCKER_IMAGE_PREFIX:-}python:3.12-slim
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
     env_file: ./agent/.env
     environment:
       INTERVIEW_GUIDE_POSTGRES_URL: postgresql://interview_agent:${POSTGRES_PASSWORD}@postgres:5432/interview_agent
@@ -54,6 +58,9 @@ services:
       dockerfile: backend/Dockerfile
       args:
         MODULE: Interview
+        MAVEN_IMAGE: ${DOCKER_IMAGE_PREFIX:-}maven:3.9.9-eclipse-temurin-21
+        JRE_IMAGE: ${DOCKER_IMAGE_PREFIX:-}eclipse-temurin:21-jre
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-https://repo.maven.apache.org/maven2}
     environment: &java-environment
       SERVER_PORT: 8080
       INTERVIEW_GUIDE_JAVA_POSTGRES_URL: jdbc:postgresql://postgres:5432/interview_agent
@@ -64,7 +71,7 @@ services:
       postgres:
         condition: service_healthy
       agent:
-        condition: service_started
+        condition: service_healthy
 
   resume-backend:
     build:
@@ -72,12 +79,15 @@ services:
       dockerfile: backend/Dockerfile
       args:
         MODULE: Resume
+        MAVEN_IMAGE: ${DOCKER_IMAGE_PREFIX:-}maven:3.9.9-eclipse-temurin-21
+        JRE_IMAGE: ${DOCKER_IMAGE_PREFIX:-}eclipse-temurin:21-jre
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-https://repo.maven.apache.org/maven2}
     environment: *java-environment
     depends_on:
       postgres:
         condition: service_healthy
       agent:
-        condition: service_started
+        condition: service_healthy
 
   knowledgebase-backend:
     build:
@@ -85,15 +95,23 @@ services:
       dockerfile: backend/Dockerfile
       args:
         MODULE: KnowledgeBase
+        MAVEN_IMAGE: ${DOCKER_IMAGE_PREFIX:-}maven:3.9.9-eclipse-temurin-21
+        JRE_IMAGE: ${DOCKER_IMAGE_PREFIX:-}eclipse-temurin:21-jre
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-https://repo.maven.apache.org/maven2}
     environment: *java-environment
     depends_on:
       postgres:
         condition: service_healthy
       agent:
-        condition: service_started
+        condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        NODE_IMAGE: ${DOCKER_IMAGE_PREFIX:-}node:20-alpine
+        NGINX_IMAGE: ${DOCKER_IMAGE_PREFIX:-}nginx:1.27-alpine
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org/}
     ports:
       - "80:80"
     depends_on:

@@ -4,15 +4,15 @@ import asyncio
 from datetime import datetime
 from types import SimpleNamespace
 
-from agent.Agents.agent_loop import AgentLoop
-from agent.Agents.models import AgentLoopCommand, AgentMessage, LlmResponse, SkillDefinition
-from agent.Agents.response_validator import ResponseValidator
-from agent.Memory.memory_service import MemoryService
-from agent.api.contracts import AgentOperationRequest
+from agent.Agents.AgentLoop import AgentLoop
+from agent.Common.AgentModels import AgentLoopCommand, AgentMessage, LlmResponse, SkillDefinition
+from agent.Agents.AgentResponse import ResponseValidator
+from agent.Memory.memoryRuntime import MemoryRuntime
+from agent.Common.AgentRequest import AgentOperationRequest
 from agent.utils.security.data_masker import DataMasker
 
 
-class MemoryGatewayStub:
+class MemoryServiceStub:
     """提供 AgentLoop 测试所需的最小记忆网关，并记录回合调用顺序。"""
 
     def __init__(self) -> None:
@@ -70,21 +70,21 @@ class LlmServiceStub:
         return LlmResponse(finalData={"reply": "ok"})
 
 
-class SkillGatewayStub:
+class SkillServiceStub:
     """为测试提供启用记忆的面试技能。"""
 
     async def resolveSkill(self, taskType):
         return SkillDefinition(taskType=taskType, systemPrompt="面试规则", memoryEnabled=True)
 
 
-class ToolGatewayStub:
+class ToolServiceStub:
     """测试中不允许模型调用工具。"""
 
     async def executeTool(self, toolCall, context):
         raise AssertionError("当前测试不应触发工具调用")
 
 
-class RagGatewayStub:
+class RagServiceStub:
     """测试中返回空检索结果。"""
 
     async def retrieveKnowledge(self, context):
@@ -109,19 +109,19 @@ def testInterviewTurnUsesMemoryBeforeCurrentRequest() -> None:
                 "prompt": "当前回答",
             }
         )
-        memoryGateway = MemoryGatewayStub()
+        memoryService = MemoryServiceStub()
         loop = AgentLoop(
             LlmServiceStub(),
-            SkillGatewayStub(),
-            ToolGatewayStub(),
-            memoryGateway,
-            RagGatewayStub(),
+            SkillServiceStub(),
+            ToolServiceStub(),
+            memoryService,
+            RagServiceStub(),
             ResponseValidator(),
         )
         response = await loop.run(AgentLoopCommand(request, request.payload))
         assert response.status == "COMPLETED"
         assert response.state_version == 1
-        assert memoryGateway.calls == ["start", "renew", "finish", "save"]
+        assert memoryService.calls == ["start", "renew", "finish", "save"]
 
     asyncio.run(executeTest())
 
@@ -138,7 +138,7 @@ def testRedisLockFailureFallsBackToDatabaseClaim() -> None:
             return "PROCESSING"
 
     async def executeTest() -> None:
-        service = MemoryService.__new__(MemoryService)
+        service = MemoryRuntime.__new__(MemoryRuntime)
         service.sessionStore = RedisFailureStore()
         service.repository = RepositoryStub()
         context = SimpleNamespace(
