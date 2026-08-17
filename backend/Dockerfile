@@ -10,8 +10,10 @@ COPY backend/pom.xml backend/pom.xml
 COPY backend backend
 WORKDIR /build/backend
 RUN --mount=type=cache,target=/root/.m2 sh -c 'printf "<settings><mirrors><mirror><id>deployment-mirror</id><mirrorOf>*</mirrorOf><url>%s</url></mirror></mirrors></settings>" "$MAVEN_MIRROR_URL" > /tmp/settings.xml \
-    && mvn -s /tmp/settings.xml -pl Utils -am install -DskipTests \
-    && mvn -s /tmp/settings.xml -pl "$MODULE" -am package -DskipTests' \
+    && mvn -s /tmp/settings.xml clean install -DskipTests -pl Common -am \
+    && mvn -s /tmp/settings.xml clean install -DskipTests -pl Agent -am \
+    && mvn -s /tmp/settings.xml clean install -DskipTests -pl Utils -am \
+    && mvn -s /tmp/settings.xml clean package -DskipTests -pl "$MODULE" -am' \
     && mkdir /output \
     && find "${MODULE}/target" -maxdepth 1 -name '*.jar' ! -name '*.original' -exec cp {} /output/app.jar \;
 
