@@ -1,7 +1,14 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 from agent.Common.Exceptions.agent_exception import AgentConfigurationError
+
+
+# 本地启动读取 agent/.env；Docker Compose 会通过环境变量注入，重复加载不会覆盖外部环境。
+load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
 
 
 @dataclass(frozen=True)

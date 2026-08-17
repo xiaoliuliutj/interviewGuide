@@ -7,3 +7,4 @@ aio-pika
 tiktoken
 pypdf
 python-docx
+python-dotenv
