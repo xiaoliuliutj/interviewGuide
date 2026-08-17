@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS resume_delete_outbox (
+    event_id VARCHAR(64) PRIMARY KEY,
+    resume_id VARCHAR(64) NOT NULL REFERENCES resume(id) ON DELETE CASCADE,
+    user_id VARCHAR(128) NOT NULL,
+    run_id VARCHAR(64) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    claimed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_resume_delete_active
+    ON resume_delete_outbox(resume_id) WHERE status IN ('PENDING','PROCESSING','FAILED');

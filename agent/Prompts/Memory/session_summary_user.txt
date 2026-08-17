@@ -1,0 +1,5 @@
+已有摘要：
+{previousSummary}
+
+待压缩对话：
+{messages}

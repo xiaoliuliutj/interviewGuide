@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: ${INTERVIEW_GUIDE_JAVA_POSTGRES_URL:jdbc:postgresql://localhost:5432/interview_guide}
+    username: ${INTERVIEW_GUIDE_JAVA_POSTGRES_USERNAME:interview_guide}
+    password: ${INTERVIEW_GUIDE_JAVA_POSTGRES_PASSWORD:replace-me}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    table: interview_flyway_schema_history
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+agent:
+  client:
+    base-url: ${INTERVIEW_GUIDE_AGENT_BASE_URL:http://localhost:8000}

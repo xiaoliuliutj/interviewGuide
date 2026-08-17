@@ -1,0 +1,2 @@
+请开始一场模拟面试。目标岗位：{{targetRole}}；难度：{{difficulty}}；面试方向：{{interviewDirection}}；关联简历：{{resumeId}}。
+请根据会话状态生成开场和第一道问题，后续由同一会话继续推进。
