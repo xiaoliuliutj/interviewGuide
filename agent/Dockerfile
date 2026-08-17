@@ -8,7 +8,7 @@ ARG PIP_INDEX_URL=https://pypi.org/simple
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --index-url "${PIP_INDEX_URL}" -r requirements.txt
 
-COPY . ./agent
+COPY . .
 
 EXPOSE 8000
 
