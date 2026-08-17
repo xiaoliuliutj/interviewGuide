@@ -10,6 +10,8 @@ RUN pip install --no-cache-dir --index-url "${PIP_INDEX_URL}" -r requirements.tx
 
 COPY . ./agent
 
+ENV PYTHONPATH=/app
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=10s --timeout=3s --retries=12 \
