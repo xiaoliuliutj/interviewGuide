@@ -6,3 +6,7 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
+
+agent:
+  client:
+    base-url: ${INTERVIEW_GUIDE_AGENT_BASE_URL:http://localhost:8000}
