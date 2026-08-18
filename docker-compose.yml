@@ -70,7 +70,11 @@ services:
       INTERVIEW_GUIDE_JAVA_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       INTERVIEW_GUIDE_AGENT_BASE_URL: http://agent:8000
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "curl -fsS -H 'X-User-Id: docker-healthcheck' http://127.0.0.1:8080/api/interviews >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
     depends_on:
       postgres:
         condition: service_healthy
@@ -88,7 +92,11 @@ services:
         MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-https://repo.maven.apache.org/maven2}
     environment: *java-environment
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "curl -fsS -H 'X-User-Id: docker-healthcheck' http://127.0.0.1:8080/api/resumes >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
     depends_on:
       postgres:
         condition: service_healthy
@@ -106,7 +114,11 @@ services:
         MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-https://repo.maven.apache.org/maven2}
     environment: *java-environment
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "curl -fsS -H 'X-User-Id: docker-healthcheck' http://127.0.0.1:8080/api/knowledgebase/list >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
     depends_on:
       postgres:
         condition: service_healthy
@@ -124,11 +136,11 @@ services:
       - "80:80"
     depends_on:
       interview-backend:
-        condition: service_started
+        condition: service_healthy
       resume-backend:
-        condition: service_started
+        condition: service_healthy
       knowledgebase-backend:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   postgres-data:

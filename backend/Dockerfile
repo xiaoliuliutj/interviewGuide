@@ -17,6 +17,11 @@ RUN --mount=type=cache,target=/root/.m2 sh -c 'printf "<settings><mirrors><mirro
 
 FROM ${JRE_IMAGE}
 WORKDIR /app
+# 健康检查需要使用 curl 访问 Spring Boot 的业务接口，确保容器启动不仅代表 Java 进程存在，
+# 还代表 Tomcat 已经监听端口并能够处理请求。
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /output/app.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
