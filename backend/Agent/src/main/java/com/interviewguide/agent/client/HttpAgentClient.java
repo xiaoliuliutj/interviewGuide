@@ -2,6 +2,7 @@ package com.interviewguide.agent.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.interviewguide.agent.dto.AgentHealthResponse;
 import com.interviewguide.agent.dto.AgentOperationRequest;
 import com.interviewguide.agent.dto.AgentOperationResponse;
@@ -49,14 +50,18 @@ public class HttpAgentClient implements AgentClient {
     @Override
     public AgentOperationResponse execute(AgentOperationRequest request) {
         try {
+            String requestJson = objectMapper.writeValueAsString(request);
             return restClient.post()
                     .uri("capability".equals(request.mode())
                             ? "/internal/v1/capabilities"
                             : "/internal/v1/runs")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(request)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(requestJson)
                     .retrieve()
                     .body(AgentOperationResponse.class);
+        } catch (JsonProcessingException error) {
+            throw new AgentClientException(402, "Agent 请求序列化失败", false, error);
         } catch (ResourceAccessException error) {
             throw createTransportException(error);
         } catch (RestClientResponseException error) {
