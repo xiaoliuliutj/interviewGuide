@@ -5,6 +5,7 @@ import com.interviewguide.agent.dto.AgentOperationRequest;
 import com.interviewguide.agent.dto.AgentOperationResponse;
 import com.interviewguide.agent.dto.AgentRequestContext;
 import com.interviewguide.agent.service.AgentCallService;
+import com.interviewguide.agent.service.AgentServiceException;
 import com.interviewguide.knowledgebase.entity.KnowledgeBaseEntity;
 import com.interviewguide.knowledgebase.entity.KnowledgeBaseDeleteOutboxEntity;
 import com.interviewguide.knowledgebase.mapper.KnowledgeBaseDeleteOutboxMapper;
@@ -86,6 +87,10 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
             agentCallService.execute(createRequest(userId, "knowledge_base.index", payload));
             entity.setStatus(BUILDING);
             mapper.updateById(entity);
+        } catch (AgentServiceException error) {
+            entity.setStatus("INDEX_FAILED");
+            mapper.updateById(entity);
+            throw error;
         } catch (Exception error) {
             entity.setStatus("INDEX_FAILED");
             mapper.updateById(entity);
@@ -215,7 +220,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 createRequest(userId, "knowledge_base.download", downloadPayload)
         );
         if (download.data() == null || !(download.data().get("content") instanceof String content)) {
-            throw new IllegalStateException("Agent 原文件内容不可用，无法重新向量化");
+            throw new AgentServiceException(444, "Agent 未保存知识库原文件，请重新上传知识库", false);
         }
         entity.setStatus(BUILDING);
         mapper.updateById(entity);
@@ -232,6 +237,10 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
             );
             entity.setStatus(BUILDING);
             mapper.updateById(entity);
+        } catch (AgentServiceException error) {
+            entity.setStatus("INDEX_FAILED");
+            mapper.updateById(entity);
+            throw error;
         } catch (Exception error) {
             entity.setStatus("INDEX_FAILED");
             mapper.updateById(entity);
