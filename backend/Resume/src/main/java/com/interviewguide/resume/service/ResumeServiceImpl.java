@@ -241,6 +241,9 @@ public class ResumeServiceImpl implements ResumeService {
             AgentOperationRequest request = requestFactory.create(event.getUserId(), event.getResumeId(), event.getRunId(),
                     "capability", "resume.delete", "", Map.of("resumeId", event.getResumeId()), 0);
             agentCallService.execute(request);
+            // 兼容已经创建但尚未执行数据库迁移的旧实例，先显式删除分析记录，避免外键阻止简历删除。
+            analysisMapper.delete(new LambdaQueryWrapper<ResumeAnalysisEntity>()
+                    .eq(ResumeAnalysisEntity::getResumeId, event.getResumeId()));
             resumeMapper.deleteById(event.getResumeId());
             event.setStatus("COMPLETED");
         } catch (RuntimeException error) {
