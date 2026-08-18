@@ -35,13 +35,13 @@ class ResumeWorkflowRepository:
         async with pool.acquire() as connection:
             async with connection.transaction():
                 existing = await connection.fetchrow(
-                    "SELECT status,resume_id FROM agent_resume_job WHERE run_id=$1",
+                    "SELECT status,resume_id FROM agent_resume_job WHERE run_id=$1::varchar",
                     runId,
                 )
                 if existing is not None:
                     return {"resumeId": existing["resume_id"], "status": existing["status"], "runId": runId}
                 owner = await connection.fetchval(
-                    "SELECT user_id FROM agent_resume_document WHERE resume_id=$1",
+                    "SELECT user_id FROM agent_resume_document WHERE resume_id=$1::varchar",
                     resumeId,
                 )
                 if owner is not None and owner != userId:
@@ -78,7 +78,7 @@ class ResumeWorkflowRepository:
         async with pool.acquire() as connection:
             row = await connection.fetchrow(
                 "SELECT resume_id,status,target_role,evaluation_json,updated_at FROM agent_resume_document "
-                "WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 1",
+                "WHERE user_id=$1::varchar ORDER BY updated_at DESC LIMIT 1",
                 userId,
             )
         return dict(row) if row else None
@@ -88,7 +88,7 @@ class ResumeWorkflowRepository:
         pool = await self.postgresService.getPool()
         async with pool.acquire() as connection:
             row = await connection.fetchrow(
-                "SELECT resume_id,file_name,content_type,raw_content,target_role FROM agent_resume_document WHERE resume_id=$1 AND user_id=$2",
+                "SELECT resume_id,file_name,content_type,raw_content,target_role FROM agent_resume_document WHERE resume_id=$1::varchar AND user_id=$2::varchar",
                 resumeId,
                 userId,
             )
@@ -106,11 +106,11 @@ class ResumeWorkflowRepository:
                 )
                 for row in rows:
                     await connection.execute(
-                        "UPDATE agent_resume_job SET status='PROCESSING',attempt_count=attempt_count+1,started_at=CURRENT_TIMESTAMP WHERE job_id=$1",
+                        "UPDATE agent_resume_job SET status='PROCESSING',attempt_count=attempt_count+1,started_at=CURRENT_TIMESTAMP WHERE job_id=$1::uuid",
                         row["job_id"],
                     )
                     await connection.execute(
-                        "UPDATE agent_resume_document SET status='PARSING',updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1",
+                        "UPDATE agent_resume_document SET status='PARSING',updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1::varchar",
                         row["resume_id"],
                     )
         return [dict(row) for row in rows]
@@ -120,7 +120,7 @@ class ResumeWorkflowRepository:
         pool = await self.postgresService.getPool()
         async with pool.acquire() as connection:
             await connection.execute(
-                "UPDATE agent_resume_document SET extracted_text=$2,status='ANALYZING',updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1",
+                "UPDATE agent_resume_document SET extracted_text=$2::text,status='ANALYZING',updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1::varchar",
                 resumeId,
                 text,
             )
@@ -131,12 +131,12 @@ class ResumeWorkflowRepository:
         async with pool.acquire() as connection:
             async with connection.transaction():
                 await connection.execute(
-                    "UPDATE agent_resume_document SET status='COMPLETED',evaluation_json=$2::jsonb,error_message=NULL,updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1",
+                    "UPDATE agent_resume_document SET status='COMPLETED',evaluation_json=$2::jsonb,error_message=NULL,updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1::varchar",
                     resumeId,
                     json.dumps(evaluation.model_dump(mode="json"), ensure_ascii=False),
                 )
                 await connection.execute(
-                    "UPDATE agent_resume_job SET status='COMPLETED',completed_at=CURRENT_TIMESTAMP,error_message=NULL WHERE run_id=$1",
+                    "UPDATE agent_resume_job SET status='COMPLETED',completed_at=CURRENT_TIMESTAMP,error_message=NULL WHERE run_id=$1::varchar",
                     runId,
                 )
 
@@ -145,13 +145,13 @@ class ResumeWorkflowRepository:
         pool = await self.postgresService.getPool()
         async with pool.acquire() as connection:
             await connection.execute(
-                "UPDATE agent_resume_document SET status=$3,error_message=$2,updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1",
+                "UPDATE agent_resume_document SET status=$3::varchar,error_message=$2::text,updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1::varchar",
                 resumeId,
                 errorMessage,
                 "FAILED" if final else "ANALYZING",
             )
             await connection.execute(
-                "UPDATE agent_resume_job SET status=$2,error_message=$3,completed_at=CASE WHEN $2='FAILED_FINAL' THEN CURRENT_TIMESTAMP ELSE NULL END WHERE run_id=$1",
+                "UPDATE agent_resume_job SET status=$2::varchar,error_message=$3::text,completed_at=CASE WHEN $2::varchar='FAILED_FINAL' THEN CURRENT_TIMESTAMP ELSE NULL END WHERE run_id=$1::varchar",
                 runId,
                 "FAILED_FINAL" if final else "PENDING",
                 errorMessage,
@@ -164,7 +164,7 @@ class ResumeWorkflowRepository:
             row = await connection.fetchrow(
                 "SELECT j.run_id,j.resume_id,j.status AS job_status,j.attempt_count,j.error_message,d.status,d.evaluation_json "
                 "FROM agent_resume_job j JOIN agent_resume_document d ON d.resume_id=j.resume_id "
-                "WHERE j.run_id=$1 AND j.user_id=$2",
+                "WHERE j.run_id=$1::varchar AND j.user_id=$2::varchar",
                 runId,
                 userId,
             )
@@ -176,7 +176,7 @@ class ResumeWorkflowRepository:
         async with pool.acquire() as connection:
             row = await connection.fetchrow(
                 "SELECT resume_id,status,evaluation_json,error_message FROM agent_resume_document "
-                "WHERE user_id=$1 AND ($2::text IS NULL OR resume_id=$2) ORDER BY updated_at DESC LIMIT 1",
+                "WHERE user_id=$1::varchar AND ($2::varchar IS NULL OR resume_id=$2::varchar) ORDER BY updated_at DESC LIMIT 1",
                 userId,
                 resumeId,
             )
@@ -188,17 +188,17 @@ class ResumeWorkflowRepository:
         async with pool.acquire() as connection:
             async with connection.transaction():
                 existing = await connection.fetchrow(
-                    "SELECT resume_id,status FROM agent_resume_job WHERE run_id=$1", runId
+                    "SELECT resume_id,status FROM agent_resume_job WHERE run_id=$1::varchar", runId
                 )
                 if existing is not None:
                     return {"resumeId": existing["resume_id"], "status": existing["status"], "runId": runId}
                 document = await connection.fetchrow(
-                    "SELECT 1 FROM agent_resume_document WHERE resume_id=$1 AND user_id=$2", resumeId, userId
+                    "SELECT 1 FROM agent_resume_document WHERE resume_id=$1::varchar AND user_id=$2::varchar", resumeId, userId
                 )
                 if document is None:
                     raise AgentSessionStateError("简历不存在或不属于当前用户")
                 await connection.execute(
-                    "UPDATE agent_resume_document SET target_role=$3,status='UPLOADED',evaluation_json=NULL,error_message=NULL,updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1 AND user_id=$2",
+                    "UPDATE agent_resume_document SET target_role=$3::text,status='UPLOADED',evaluation_json=NULL,error_message=NULL,updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1::varchar AND user_id=$2::varchar",
                     resumeId, userId, targetRole
                 )
                 await connection.execute(
@@ -212,7 +212,7 @@ class ResumeWorkflowRepository:
         pool = await self.postgresService.getPool()
         async with pool.acquire() as connection:
             row = await connection.fetchrow(
-                "SELECT file_name,content_type,raw_content FROM agent_resume_document WHERE resume_id=$1 AND user_id=$2",
+                "SELECT file_name,content_type,raw_content FROM agent_resume_document WHERE resume_id=$1::varchar AND user_id=$2::varchar",
                 resumeId, userId
             )
         return dict(row) if row else None
@@ -222,7 +222,7 @@ class ResumeWorkflowRepository:
         pool = await self.postgresService.getPool()
         async with pool.acquire() as connection:
             async with connection.transaction():
-                await connection.execute("DELETE FROM agent_resume_job WHERE resume_id=$1 AND user_id=$2", resumeId, userId)
-                await connection.execute("UPDATE agent_resume_memory SET deleted_at=CURRENT_TIMESTAMP,is_current=FALSE WHERE resume_id=$1 AND user_id=$2 AND deleted_at IS NULL", resumeId, userId)
-                result = await connection.execute("DELETE FROM agent_resume_document WHERE resume_id=$1 AND user_id=$2", resumeId, userId)
+                await connection.execute("DELETE FROM agent_resume_job WHERE resume_id=$1::varchar AND user_id=$2::varchar", resumeId, userId)
+                await connection.execute("UPDATE agent_resume_memory SET deleted_at=CURRENT_TIMESTAMP,is_current=FALSE WHERE resume_id=$1::varchar AND user_id=$2::varchar AND deleted_at IS NULL", resumeId, userId)
+                result = await connection.execute("DELETE FROM agent_resume_document WHERE resume_id=$1::varchar AND user_id=$2::varchar", resumeId, userId)
         return result != "DELETE 0"

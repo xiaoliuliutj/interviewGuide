@@ -339,14 +339,14 @@ class MemoryRepository:
             async with connection.transaction():
                 await connection.execute(
                     "UPDATE agent_resume_memory SET is_current = FALSE, updated_at = CURRENT_TIMESTAMP "
-                    "WHERE user_id = $1 AND resume_id = $2 AND is_current",
+                    "WHERE user_id = $1::varchar AND resume_id = $2::varchar AND is_current",
                     userId,
                     resumeId,
                 )
                 await connection.execute(
                     "INSERT INTO agent_resume_memory(user_id, resume_id, version, content_json, summary_text, source) "
-                    "SELECT $1, $2, COALESCE(MAX(version), 0) + 1, $3::jsonb, $4, 'RESUME_EVALUATION' "
-                    "FROM agent_resume_memory WHERE user_id = $1 AND resume_id = $2",
+                    "SELECT $1::varchar, $2::varchar, COALESCE(MAX(version), 0) + 1, $3::jsonb, $4::text, 'RESUME_EVALUATION' "
+                    "FROM agent_resume_memory WHERE user_id = $1::varchar AND resume_id = $2::varchar",
                     userId,
                     resumeId,
                     contentJson,
@@ -359,7 +359,7 @@ class MemoryRepository:
         async with pool.acquire() as connection:
             await connection.execute(
                 "UPDATE agent_resume_memory SET deleted_at = CURRENT_TIMESTAMP, is_current = FALSE "
-                "WHERE user_id = $1 AND resume_id = $2 AND deleted_at IS NULL",
+                "WHERE user_id = $1::varchar AND resume_id = $2::varchar AND deleted_at IS NULL",
                 userId,
                 resumeId,
             )

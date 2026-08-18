@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from typing import Any
 
 from agent.Common.AgentModels import AgentContext, LlmResponse, ToolCall
@@ -14,6 +15,9 @@ from agent.Common.Exceptions.AgentException import (
     LlmTimeoutError,
 )
 from agent.Common.PromptService import PromptLoader
+
+
+logger = logging.getLogger(__name__)
 
 
 class LlmService:
@@ -133,6 +137,7 @@ class LlmService:
                 lastError = error
             except Exception as error:
                 mappedError = self.mapProviderError(error)
+                logger.exception("大模型请求失败，providerError=%s", error)
                 if not mappedError.retryable:
                     raise mappedError
                 lastError = mappedError
@@ -168,7 +173,10 @@ class LlmService:
             return LlmRateLimitError("OpenAI 请求触发限流")
         if statusCode == 400 and ("context" in message or "token" in message):
             return LlmContextLimitExceededError("模型上下文超过限制")
-        return LlmProviderUnavailableError("OpenAI 请求失败")
+        detail = str(error).strip()
+        return LlmProviderUnavailableError(
+            f"OpenAI 请求失败{(': ' + detail[:300]) if detail else ''}"
+        )
 
     async def close(self) -> None:
         """关闭已创建的 OpenAI 客户端，供应用关闭生命周期释放连接。"""
