@@ -71,12 +71,6 @@ services:
       INTERVIEW_GUIDE_AGENT_BASE_URL: http://agent:8000
     healthcheck:
       disable: true
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q 'HTTP'"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 120s
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,12 +89,6 @@ services:
     environment: *java-environment
     healthcheck:
       disable: true
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q 'HTTP'"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 120s
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,12 +107,6 @@ services:
     environment: *java-environment
     healthcheck:
       disable: true
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q 'HTTP'"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 120s
     depends_on:
       postgres:
         condition: service_healthy
