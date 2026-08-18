@@ -6,6 +6,7 @@ import com.interviewguide.agent.dto.AgentHealthResponse;
 import com.interviewguide.agent.dto.AgentOperationRequest;
 import com.interviewguide.agent.dto.AgentOperationResponse;
 import java.util.Locale;
+import org.springframework.http.MediaType;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -52,6 +53,7 @@ public class HttpAgentClient implements AgentClient {
                     .uri("capability".equals(request.mode())
                             ? "/internal/v1/capabilities"
                             : "/internal/v1/runs")
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()
                     .body(AgentOperationResponse.class);
