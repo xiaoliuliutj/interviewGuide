@@ -11,7 +11,7 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 if [ "${1:-}" = "down" ]; then
-    docker compose --project-directory "$project_root" -f "$compose_path" down
+    docker compose --project-directory "$project_root" -f "$compose_path" down -v
     exit $?
 fi
 
