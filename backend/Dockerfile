@@ -11,9 +11,6 @@ COPY backend backend
 WORKDIR /build/backend
 RUN --mount=type=cache,target=/root/.m2 sh -c 'printf "<settings><mirrors><mirror><id>deployment-mirror</id><mirrorOf>*</mirrorOf><url>%s</url></mirror></mirrors></settings>" "$MAVEN_MIRROR_URL" > /tmp/settings.xml \
     && find /root/.m2/repository -name "maven-metadata-local.xml" -type f -delete 2>/dev/null || true \
-    && mvn -s /tmp/settings.xml clean install -DskipTests -pl Common -am \
-    && mvn -s /tmp/settings.xml clean install -DskipTests -pl Agent -am \
-    && mvn -s /tmp/settings.xml clean install -DskipTests -pl Utils -am \
     && mvn -s /tmp/settings.xml clean package -DskipTests -pl "$MODULE" -am' \
     && mkdir /output \
     && find "${MODULE}/target" -maxdepth 1 -name '*.jar' ! -name '*.original' -exec cp {} /output/app.jar \;
