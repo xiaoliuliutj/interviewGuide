@@ -190,14 +190,14 @@ public class ResumeServiceImpl implements ResumeService {
     @Transactional
     public void deleteResume(String userId, String resumeId) {
         ResumeEntity resume = requireOwnedResume(userId, resumeId);
-        if ("DELETE_REQUESTED".equals(resume.getStatus()) || "DELETE_FAILED".equals(resume.getStatus())) {
-            ResumeDeleteOutboxEntity failed = deleteOutboxMapper.findActiveByResumeId(resumeId);
-            if (failed != null && "FAILED".equals(failed.getStatus())) {
+        ResumeDeleteOutboxEntity activeEvent = deleteOutboxMapper.findActiveByResumeId(resumeId);
+        if (activeEvent != null) {
+            if ("FAILED".equals(activeEvent.getStatus())) {
                 // 用户再次点击删除时立即重新投递，不必等待下一次半小时定时窗口。
-                failed.setStatus("PENDING");
-                failed.setAttemptCount(0);
-                failed.setNextAttemptAt(Instant.now());
-                deleteOutboxMapper.updateById(failed);
+                activeEvent.setStatus("PENDING");
+                activeEvent.setAttemptCount(0);
+                activeEvent.setNextAttemptAt(Instant.now());
+                deleteOutboxMapper.updateById(activeEvent);
                 resume.setStatus("DELETE_REQUESTED");
                 resume.setUpdatedAt(Instant.now());
                 resumeMapper.updateById(resume);
