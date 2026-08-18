@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from agent.Common.Exceptions.AgentException import AgentSessionStateError
 from agent.Common.Postgres.PostgresService import PostgresService
-from agent.WorkFlows.Resume.resumeModels import ResumeEvaluation, ResumeJobStatus
+from agent.Workflows.Resume.resumeModels import ResumeEvaluation, ResumeJobStatus
 
 
 class ResumeWorkflowRepository:

@@ -19,7 +19,7 @@ from agent.Common.PromptService import PromptLoader
 from agent.RAG.ragService import RagService
 from agent.Common.AgentRequest import AgentOperationRequest
 from agent.utils.security.data_masker import DataMasker
-from agent.WorkFlows.Interview.interviewModels import (
+from agent.Workflows.Interview.interviewModels import (
     InterviewAction,
     InterviewEvaluation,
     InterviewIntent,
@@ -33,7 +33,7 @@ from agent.WorkFlows.Interview.interviewModels import (
     InterviewSummary,
     InterviewTurn,
 )
-from agent.WorkFlows.Interview.interviewRepository import InterviewWorkflowRepository
+from agent.Workflows.Interview.interviewRepository import InterviewWorkflowRepository
 
 
 class InterviewWorkflow:

@@ -8,11 +8,11 @@ from agent.Common.Exceptions.AgentException import AgentRequestContractError, Ll
 from agent.LLM.llmService import LlmService
 from agent.Common.PromptService import PromptLoader
 from agent.Common.AgentRequest import AgentOperationRequest
-from agent.WorkFlows.Interview.interviewModels import WorkflowIntentDecision
-from agent.WorkFlows.Interview.interviewRepository import InterviewWorkflowRepository
-from agent.WorkFlows.Interview.interviewWorkflow import InterviewWorkflow
-from agent.WorkFlows.Resume.resumeRepository import ResumeWorkflowRepository
-from agent.WorkFlows.Resume.resumeWorkflow import ResumeWorkflow
+from agent.Workflows.Interview.interviewModels import WorkflowIntentDecision
+from agent.Workflows.Interview.interviewRepository import InterviewWorkflowRepository
+from agent.Workflows.Interview.interviewWorkflow import InterviewWorkflow
+from agent.Workflows.Resume.resumeRepository import ResumeWorkflowRepository
+from agent.Workflows.Resume.resumeWorkflow import ResumeWorkflow
 
 
 class WorkflowRuntime:

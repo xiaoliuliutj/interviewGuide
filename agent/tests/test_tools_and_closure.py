@@ -4,8 +4,8 @@ import json
 from agent.Common.AgentModels import AgentContext, SkillDefinition, ToolCall
 from agent.Common.AgentResults import AgentTaskType
 from agent.Tools.toolsService import ToolService
-from agent.WorkFlows.Interview.interviewModels import InterviewSessionState, InterviewStage
-from agent.WorkFlows.Interview.interviewWorkflow import InterviewWorkflow
+from agent.Workflows.Interview.interviewModels import InterviewSessionState, InterviewStage
+from agent.Workflows.Interview.interviewWorkflow import InterviewWorkflow
 from agent.Common.AgentRequest import AgentOperationRequest
 from agent.tests.test_workflow_core import buildPlan
 

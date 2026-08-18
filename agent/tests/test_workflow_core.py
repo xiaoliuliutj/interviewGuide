@@ -4,7 +4,7 @@ import asyncio
 import pytest
 
 from agent.RAG.ragDocumentParser import DocumentParser
-from agent.WorkFlows.Interview.interviewModels import (
+from agent.Workflows.Interview.interviewModels import (
     InterviewAction,
     InterviewEvaluation,
     InterviewPlan,
@@ -14,11 +14,11 @@ from agent.WorkFlows.Interview.interviewModels import (
     InterviewStage,
     WorkflowIntentDecision,
 )
-from agent.WorkFlows.Interview.interviewWorkflow import InterviewWorkflow
-from agent.WorkFlows.workflowService import WorkflowService
+from agent.Workflows.Interview.interviewWorkflow import InterviewWorkflow
+from agent.Workflows.workflowService import WorkflowService
 from agent.Common.AgentRequest import AgentOperationRequest
 from agent.Memory.memoryModels import LongTermMemorySnapshot
-from agent.WorkFlows.Resume.resumeWorkflow import ResumeWorkflow
+from agent.Workflows.Resume.resumeWorkflow import ResumeWorkflow
 
 
 def buildPlan() -> InterviewPlan:

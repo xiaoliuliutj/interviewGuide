@@ -7,7 +7,7 @@ from agent.Common.AgentModels import AgentContext, AgentLoopCommand, ToolCall
 from agent.Common.Exceptions.AgentException import AgentRequestContractError
 from agent.Common.AgentResults import AgentOperationResponse, AgentTaskType
 from agent.Common.AgentRequest import AgentOperationRequest
-from agent.WorkFlows.workflowService import WorkflowService
+from agent.Workflows.workflowService import WorkflowService
 from agent.Agents.AgentResponse import ResponseValidator
 from agent.Common.Configs.AgentSettings import AgentSettings
 from agent.Common.Postgres.PostgresService import PostgresService
@@ -18,10 +18,10 @@ from agent.Memory.memoryService import MemoryService
 from agent.RAG.ragService import RagService
 from agent.Skills.skillsService import SkillService
 from agent.Tools.toolsService import ToolService
-from agent.WorkFlows.Interview.interviewRepository import InterviewWorkflowRepository
-from agent.WorkFlows.Interview.interviewWorkflow import InterviewWorkflow
-from agent.WorkFlows.Resume.resumeRepository import ResumeWorkflowRepository
-from agent.WorkFlows.Resume.resumeWorkflow import ResumeWorkflow
+from agent.Workflows.Interview.interviewRepository import InterviewWorkflowRepository
+from agent.Workflows.Interview.interviewWorkflow import InterviewWorkflow
+from agent.Workflows.Resume.resumeRepository import ResumeWorkflowRepository
+from agent.Workflows.Resume.resumeWorkflow import ResumeWorkflow
 
 
 class AgentApplicationService:

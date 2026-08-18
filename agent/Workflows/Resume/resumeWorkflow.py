@@ -10,8 +10,8 @@ from agent.Memory.memoryService import MemoryService
 from agent.Common.PromptService import PromptLoader
 from agent.RAG.ragDocumentParser import DocumentParser
 from agent.RAG.ragPolicy import RagPolicy
-from agent.WorkFlows.Resume.resumeModels import ResumeEvaluation, ResumeJobStatus
-from agent.WorkFlows.Resume.resumeRepository import ResumeWorkflowRepository
+from agent.Workflows.Resume.resumeModels import ResumeEvaluation, ResumeJobStatus
+from agent.Workflows.Resume.resumeRepository import ResumeWorkflowRepository
 from agent.Common.AgentRequest import AgentOperationRequest
 import json
 

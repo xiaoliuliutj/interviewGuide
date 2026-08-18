@@ -13,7 +13,7 @@ from agent.Common.Exceptions.AgentException import (
     MemoryVersionConflictError,
 )
 from agent.Common.Postgres.PostgresService import PostgresService
-from agent.WorkFlows.Interview.interviewModels import InterviewSessionState, InterviewTurn
+from agent.Workflows.Interview.interviewModels import InterviewSessionState, InterviewTurn
 
 
 class InterviewWorkflowRepository:

@@ -2,11 +2,11 @@ from typing import Any
 
 from agent.Agents.AgentLoop import AgentLoop
 from agent.LLM.llmService import LlmService
-from agent.WorkFlows.Interview.interviewRepository import InterviewWorkflowRepository
-from agent.WorkFlows.Interview.interviewWorkflow import InterviewWorkflow
-from agent.WorkFlows.Resume.resumeRepository import ResumeWorkflowRepository
-from agent.WorkFlows.Resume.resumeWorkflow import ResumeWorkflow
-from agent.WorkFlows.workflowRuntime import WorkflowRuntime
+from agent.Workflows.Interview.interviewRepository import InterviewWorkflowRepository
+from agent.Workflows.Interview.interviewWorkflow import InterviewWorkflow
+from agent.Workflows.Resume.resumeRepository import ResumeWorkflowRepository
+from agent.Workflows.Resume.resumeWorkflow import ResumeWorkflow
+from agent.Workflows.workflowRuntime import WorkflowRuntime
 
 
 class WorkflowService:
