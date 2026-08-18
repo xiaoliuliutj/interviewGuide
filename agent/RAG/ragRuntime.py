@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import hashlib
+import logging
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from agent.Common.AgentModels import AgentContext
@@ -15,6 +16,9 @@ from agent.RAG.ragPolicy import RagPolicy
 from agent.RAG.ragCache import RagSessionCache
 from agent.RAG.ragRepository import RagRepository
 from agent.Tools.toolsWebReader.toolsWebReader import WebReader
+
+
+logger = logging.getLogger(__name__)
 
 
 class RagRuntime:
@@ -226,6 +230,11 @@ class RagRuntime:
                 await self.repository.completeIndexRun(str(job["knowledge_base_id"]), str(job["document_id"]), str(job["run_id"]), version, len(chunks))
                 await self.repository.finishIndexJob(str(job["job_id"]), True)
             except Exception as error:
+                logger.exception(
+                    "知识库索引任务失败，knowledgeBaseId=%s，documentId=%s",
+                    job["knowledge_base_id"],
+                    job["document_id"],
+                )
                 await self.repository.setKnowledgeBaseStatusIfVersion(
                     str(job["knowledge_base_id"]),
                     int(job["index_version"]),
@@ -238,7 +247,12 @@ class RagRuntime:
         status = await self.repository.getKnowledgeBaseStatus(str(payload["knowledgeBaseId"]), str(payload["userId"]))
         if status is None:
             raise RagIndexingError("知识库不存在或当前用户无访问权限")
-        return {"status": status["status"], "chunkCount": status.get("last_chunk_count") or 0, "documentId": status.get("last_document_id")}
+        return {
+            "status": status["status"],
+            "chunkCount": status.get("last_chunk_count") or 0,
+            "documentId": status.get("last_document_id"),
+            "errorMessage": status.get("error_message"),
+        }
 
     async def deleteKnowledgeBase(self, knowledgeBaseId: str, userId: str) -> None:
         """幂等删除知识库全部正文、chunk、向量和索引元数据。"""

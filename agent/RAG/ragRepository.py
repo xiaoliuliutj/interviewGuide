@@ -221,7 +221,18 @@ class RagRepository:
         """向 Java 返回当前用户知识库的异步索引状态和 chunk 数量。"""
         pool = await self.postgresService.getPool()
         async with pool.acquire() as connection:
-            row = await connection.fetchrow("SELECT k.status,k.last_chunk_count,k.last_document_id FROM rag_knowledge_bases k WHERE k.knowledge_base_id=$1 AND k.owner_user_id=$2", knowledgeBaseId, userId)
+            row = await connection.fetchrow(
+                "SELECT k.status,k.last_chunk_count,k.last_document_id,j.error_message "
+                "FROM rag_knowledge_bases k "
+                "LEFT JOIN LATERAL ("
+                "SELECT error_message FROM rag_index_job "
+                "WHERE knowledge_base_id=k.knowledge_base_id AND index_version=k.index_version "
+                "ORDER BY updated_at DESC LIMIT 1"
+                ") j ON TRUE "
+                "WHERE k.knowledge_base_id=$1 AND k.owner_user_id=$2",
+                knowledgeBaseId,
+                userId,
+            )
         return dict(row) if row is not None else None
 
     async def saveWebCrawl(

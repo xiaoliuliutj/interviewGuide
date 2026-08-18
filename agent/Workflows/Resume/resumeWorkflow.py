@@ -1,6 +1,7 @@
 """负责简历文件解析、异步 LLM 评估、状态查询和长期记忆写入。"""
 
 import base64
+import logging
 from typing import Any
 
 from agent.Common.Exceptions.AgentException import AgentRequestContractError, RagDocumentParseError
@@ -14,6 +15,9 @@ from agent.Workflows.Resume.resumeModels import ResumeEvaluation, ResumeJobStatu
 from agent.Workflows.Resume.resumeRepository import ResumeWorkflowRepository
 from agent.Common.AgentRequest import AgentOperationRequest
 import json
+
+
+logger = logging.getLogger(__name__)
 
 
 class ResumeWorkflow:
@@ -132,12 +136,17 @@ class ResumeWorkflow:
                     str(job.get("target_role") or "通用技术岗位"),
                 )
                 await self.repository.completeJob(str(job["run_id"]), str(job["resume_id"]), evaluation)
-                await self.memoryService.saveResumeEvaluation(
-                    str(job["user_id"]),
-                    str(job["resume_id"]),
-                    evaluation.model_dump(mode="json"),
-                )
+                try:
+                    await self.memoryService.saveResumeEvaluation(
+                        str(job["user_id"]),
+                        str(job["resume_id"]),
+                        evaluation.model_dump(mode="json"),
+                    )
+                except Exception:
+                    # 简历评估已持久化完成，长期记忆写入失败不能把已完成的分析任务回滚为失败。
+                    logger.exception("简历长期记忆写入失败，resumeId=%s", job["resume_id"])
             except Exception as error:
+                logger.exception("简历解析或评估任务失败，resumeId=%s", job["resume_id"])
                 attemptCount = int(job.get("attempt_count") or 0) + 1
                 await self.repository.failJob(
                     str(job["run_id"]),
