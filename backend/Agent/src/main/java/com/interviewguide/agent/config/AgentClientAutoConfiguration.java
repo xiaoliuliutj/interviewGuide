@@ -7,6 +7,7 @@ import com.interviewguide.agent.service.AgentRequestFactory;
 import com.interviewguide.agent.service.AgentResponseGuard;
 import com.interviewguide.agent.service.AgentExceptionHandler;
 import com.interviewguide.agent.service.AgentCallService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -18,12 +19,13 @@ public class AgentClientAutoConfiguration {
     @Bean
     public AgentClient agentClient(
             RestClient.Builder restClientBuilder,
-            AgentClientProperties properties
+            AgentClientProperties properties,
+            ObjectMapper objectMapper
     ) {
         RestClient restClient = restClientBuilder
                 .baseUrl(properties.getBaseUrl().toString())
                 .build();
-        return new HttpAgentClient(restClient);
+        return new HttpAgentClient(restClient, objectMapper);
     }
 
     /** 注册可被多个业务 Service 复用的请求、提示词和响应支持组件。 */

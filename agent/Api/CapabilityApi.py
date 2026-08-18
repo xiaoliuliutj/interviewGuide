@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request
 from agent.Common.AgentRequest import AgentOperationRequest
 from agent.Common.Exceptions.AgentException import AgentException, AgentRequestContractError
 from agent.Common.AgentResults import AgentError, AgentOperationResponse
+from agent.Common.AgentErrorCatalog import getAgentErrorMessage
 
 
 def registerCapabilityApi(app: FastAPI) -> None:
@@ -26,5 +27,5 @@ def registerCapabilityApi(app: FastAPI) -> None:
                 status="FAILED",
                 state_version=payload.state_version,
                 data=None,
-                error=AgentError(type=type(error).__name__, message=str(error), retryable=error.retryable),
+                error=AgentError(type=type(error).__name__, message=getAgentErrorMessage(error.status_code), retryable=error.retryable),
             )

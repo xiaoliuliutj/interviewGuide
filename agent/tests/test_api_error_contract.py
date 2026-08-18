@@ -20,7 +20,7 @@ def testFailureResponseKeepsAgentCodeAndChineseMessage() -> None:
     response = createFailureResponse(request, LlmTimeoutError("provider timeout"))
     assert response.status_code == AgentResultStatus.LLM_REQUEST_TIMEOUT
     assert response.error is not None
-    assert response.error.message == "大模型请求超。"
+    assert response.error.message == "大模型请求超时"
     assert response.error.retryable is True
 
 

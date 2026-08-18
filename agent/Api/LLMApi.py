@@ -1,11 +1,17 @@
 import asyncio
 import logging
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from agent.Api.CapabilityApi import registerCapabilityApi
 from agent.Api.Service import AgentApplicationService, createApplicationService, createMemoryEventWorker
 from agent.Common.AgentRequest import AgentHealthResponse, AgentOperationRequest
+from agent.Common.AgentErrorCatalog import getAgentErrorMessage
+from agent.Common.AgentErrorCatalog import getAgentErrorMessage
 from agent.Common.AgentResults import AgentError, AgentOperationResponse
 from agent.Common.Exceptions.AgentException import AgentException, AgentRequestContractError
 from agent.Common.Configs.AgentSettings import AgentSettings
@@ -15,28 +21,13 @@ from agent.Memory.memoryRepository import MemoryRepository
 
 logger = logging.getLogger(__name__)
 
-ERROR_MESSAGES = {
-    400: "Agent 服务暂时不可用", 401: "Agent 服务请求超时", 402: "Agent 执行失败",
-    403: "不支持当前 Agent 任务", 404: "Agent 请求格式不符合协议",
-    410: "大模型服务暂时不可用", 411: "大模型服务认证失败", 412: "大模型请求过于频繁",
-    413: "大模型请求超。", 414: "大模型未返回有效内容", 415: "大模型工具调用格式错误",
-    416: "大模型输出格式不符合要求", 417: "大模型拒绝处理当前内容", 418: "大模型上下文超过限制",
-    420: "请求的工具未注册", 421: "当前任务无权使用该工具", 422: "工具调用参数不合法", 423: "工具执行超时", 424: "工具执行失败",
-    430: "记忆服务暂时不可用", 431: "读取记忆失败", 432: "写入记忆失败",
-    440: "知识库服务暂时不可用", 441: "知识库检索失败", 442: "向量生成失败", 443: "向量库操作失败", 444: "知识库索引失败", 445: "知识库删除失败", 446: "文档解析失败", 447: "文档超过允许大小",
-    450: "Redis 服务暂时不可用", 452: "RabbitMQ 服务暂时不可用",
-    460: "Agent 会话不存在", 461: "当前会话正在处理其他请求", 462: "当前会话状态不允许该操作", 463: "Agent 状态保存失败", 465: "Agent 执行轮数超过限制", 466: "Agent 执行超过截止时间",
-    470: "Agent 配置不正确", 471: "Agent 提示词不存在", 472: "Agent Skill 不存在", 473: "Agent Skill 配置不正确", 474: "网页访问失败", 475: "网页内容不安全", 476: "简历文档解析失败", 477: "简历分析失败", 478: "简历分析结果不存在", 499: "Agent 内部错误",
-}
-
-
 def createFailureResponse(request: AgentOperationRequest, error: AgentException) -> AgentOperationResponse:
     """将 Agent 异常转换为 Java 可稳定解析的失败响应。"""
     return AgentOperationResponse(api_version=request.context.api_version, request_id=request.context.request_id,
         run_id=request.context.run_id, principal_id=request.context.principal_id,
         conversation_id=request.context.conversation_id, status_code=error.status_code, status="FAILED",
         state_version=request.state_version, data=None,
-        error=AgentError(type=type(error).__name__, message=ERROR_MESSAGES.get(int(error.status_code), "Agent 执行失败"), retryable=error.retryable))
+        error=AgentError(type=type(error).__name__, message=getAgentErrorMessage(error.status_code), retryable=error.retryable))
 
 
 def createApp(service: AgentApplicationService | None = None) -> FastAPI:
@@ -44,6 +35,34 @@ def createApp(service: AgentApplicationService | None = None) -> FastAPI:
     app = FastAPI(title="Interview Agent Internal API", version="v1")
     app.state.agentService = service or createApplicationService()
     registerCapabilityApi(app)
+
+    @app.exception_handler(RequestValidationError)
+    async def handleRequestValidation(request: Request, error: RequestValidationError) -> JSONResponse:
+        """将 FastAPI 的 422 校验错误转换为统一 Agent 协议响应，避免 Java 丢失错误码。"""
+        try:
+            rawBody = await request.json()
+        except Exception:
+            rawBody = {}
+        context = rawBody.get("context") if isinstance(rawBody, dict) else {}
+        context = context if isinstance(context, dict) else {}
+        response = {
+            "apiVersion": context.get("apiVersion", "v1"),
+            "requestId": context.get("requestId", "unknown"),
+            "runId": context.get("runId", "unknown"),
+            "principalId": context.get("principalId", "unknown"),
+            "conversationId": context.get("conversationId", "unknown"),
+            "statusCode": 404,
+            "status": "FAILED",
+            "stateVersion": rawBody.get("stateVersion", 0) if isinstance(rawBody, dict) else 0,
+            "data": {"validation": jsonable_encoder(error.errors())},
+            "error": {
+                "type": "AgentRequestContractError",
+                "message": getAgentErrorMessage(404),
+                "retryable": False,
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        return JSONResponse(status_code=200, content=response)
 
     @app.on_event("startup")
     async def startBackgroundTasks() -> None:

@@ -6,11 +6,7 @@ import com.interviewguide.agent.dto.AgentOperationRequest;
 import com.interviewguide.agent.dto.AgentOperationResponse;
 import java.time.Instant;
 
-/**
- * 执行 Java 侧通用可靠性控制：有限重试和简单熔断。
- *
- * <p>该类不构造 Prompt、不决定业务补偿，也不解释 Agent data；业务 Service 在调用前后负责自身事务和状态。</p>
- */
+/** 负责 Java 到 Agent 的重试与熔断；不改写 Agent 已确定的业务错误。 */
 public class AgentCallService {
     private static final int MAX_ATTEMPTS = 2;
     private static final int CIRCUIT_FAILURE_THRESHOLD = 3;
@@ -21,20 +17,17 @@ public class AgentCallService {
     private int consecutiveFailures;
     private Instant circuitOpenUntil;
 
-    /** 保存纯 HTTP Client 和统一响应校验器。 */
     public AgentCallService(AgentClient agentClient, AgentResponseGuard responseGuard) {
         this.agentClient = agentClient;
         this.responseGuard = responseGuard;
     }
 
-    /**
-     * 对明确可恢复的网络或 Agent 错误最多尝试两次，并在连续失败后短暂熔断。
-     */
+    /** 对可重试的通信或 Agent 错误最多重试两次，连续失败后短暂熔断。 */
     public synchronized AgentOperationResponse execute(AgentOperationRequest request) {
         if (circuitOpenUntil != null && Instant.now().isBefore(circuitOpenUntil)) {
             throw new AgentServiceException(400, "Agent 服务暂时熔断，请稍后重试", true);
         }
-        RuntimeException lastError = null;
+        AgentServiceException lastError = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
                 AgentOperationResponse response = responseGuard.requireSuccess(request, agentClient.execute(request));
@@ -47,13 +40,18 @@ public class AgentCallService {
                     throw error;
                 }
             } catch (AgentClientException error) {
-                lastError = new AgentServiceException(400, "Agent 服务暂时不可用", true);
+                lastError = new AgentServiceException(error.getAgentCode(), error.getMessage(), error.isRetryable());
+                if (!error.isRetryable()) {
+                    throw lastError;
+                }
             }
         }
         consecutiveFailures++;
         if (consecutiveFailures >= CIRCUIT_FAILURE_THRESHOLD) {
             circuitOpenUntil = Instant.now().plusMillis(CIRCUIT_COOLDOWN_MILLIS);
         }
-        throw lastError == null ? new AgentServiceException(400, "Agent 服务暂时不可用", true) : lastError;
+        throw lastError == null
+                ? new AgentServiceException(400, "Agent 服务暂时不可用", true)
+                : lastError;
     }
 }
