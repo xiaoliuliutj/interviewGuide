@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @AutoConfiguration
@@ -24,6 +25,8 @@ public class AgentClientAutoConfiguration {
     ) {
         RestClient restClient = restClientBuilder
                 .baseUrl(properties.getBaseUrl().toString())
+                // 使用标准 HTTP/1.1 请求工厂，避免 JDK 客户端向 Uvicorn 发起不兼容的 Upgrade 请求。
+                .requestFactory(new SimpleClientHttpRequestFactory())
                 .build();
         return new HttpAgentClient(restClient, objectMapper);
     }
