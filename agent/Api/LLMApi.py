@@ -50,7 +50,23 @@ def createApp(service: AgentApplicationService | None = None) -> FastAPI:
         """初始化消息消费者，并持续执行可恢复的后台任务。"""
         worker, rabbitMqService = createMemoryEventWorker()
         app.state.memoryEventWorker, app.state.memoryRabbitMqService = worker, rabbitMqService
-        await rabbitMqService.consumeEvents(worker.handleEvent)
+
+        # 重试连接 RabbitMQ，最多等待 30 秒
+        max_retries = 10
+        retry_delay = 3
+        for attempt in range(max_retries):
+            try:
+                await rabbitMqService.consumeEvents(worker.handleEvent)
+                logger.info("成功连接到 RabbitMQ")
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"连接 RabbitMQ 失败 (尝试 {attempt + 1}/{max_retries}): {e}，{retry_delay}秒后重试...")
+                    await asyncio.sleep(retry_delay)
+                else:
+                    logger.error(f"连接 RabbitMQ 失败，已达到最大重试次数: {e}")
+                    raise
+
         repository = MemoryRepository(PostgresService(AgentSettings.from_environment()))
         app.state.memoryPublisherRepository = repository
         await repository.postgresService.runMemoryMigrations()
