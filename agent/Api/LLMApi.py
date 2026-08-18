@@ -11,7 +11,7 @@ from agent.Api.CapabilityApi import registerCapabilityApi
 from agent.Api.Service import AgentApplicationService, createApplicationService, createMemoryEventWorker
 from agent.Common.AgentRequest import AgentHealthResponse, AgentOperationRequest
 from agent.Common.AgentErrorCatalog import getAgentErrorMessage
-from agent.Common.AgentErrorCatalog import getAgentErrorMessage
+from agent.Common.AgentErrorFormatting import formatValidationErrors
 from agent.Common.AgentResults import AgentError, AgentOperationResponse
 from agent.Common.Exceptions.AgentException import AgentException, AgentRequestContractError
 from agent.Common.Configs.AgentSettings import AgentSettings
@@ -27,7 +27,11 @@ def createFailureResponse(request: AgentOperationRequest, error: AgentException)
         run_id=request.context.run_id, principal_id=request.context.principal_id,
         conversation_id=request.context.conversation_id, status_code=error.status_code, status="FAILED",
         state_version=request.state_version, data=None,
-        error=AgentError(type=type(error).__name__, message=getAgentErrorMessage(error.status_code), retryable=error.retryable))
+        error=AgentError(
+            type=type(error).__name__,
+            message=str(error).strip() or getAgentErrorMessage(error.status_code),
+            retryable=error.retryable,
+        ))
 
 
 def createApp(service: AgentApplicationService | None = None) -> FastAPI:
@@ -57,7 +61,7 @@ def createApp(service: AgentApplicationService | None = None) -> FastAPI:
             "data": {"validation": jsonable_encoder(error.errors())},
             "error": {
                 "type": "AgentRequestContractError",
-                "message": getAgentErrorMessage(404),
+                "message": formatValidationErrors(error.errors()),
                 "retryable": False,
             },
             "timestamp": datetime.now(timezone.utc).isoformat(),

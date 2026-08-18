@@ -27,5 +27,9 @@ def registerCapabilityApi(app: FastAPI) -> None:
                 status="FAILED",
                 state_version=payload.state_version,
                 data=None,
-                error=AgentError(type=type(error).__name__, message=getAgentErrorMessage(error.status_code), retryable=error.retryable),
+                error=AgentError(
+                    type=type(error).__name__,
+                    message=str(error).strip() or getAgentErrorMessage(error.status_code),
+                    retryable=error.retryable,
+                ),
             )
