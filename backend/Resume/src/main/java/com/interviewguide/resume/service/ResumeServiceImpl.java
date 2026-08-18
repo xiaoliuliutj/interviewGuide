@@ -21,7 +21,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -96,7 +95,9 @@ public class ResumeServiceImpl implements ResumeService {
             applyAgentStatus(resume, analysis, agentCallService.execute(request).data());
             resumeMapper.updateById(resume);
             analysisMapper.updateById(analysis);
-            return toView(resume, analysis);
+            Map<String, Object> response = toView(resume, analysis);
+            response.put("storage", Map.of("resumeId", resumeId));
+            return response;
         } catch (Exception error) {
             resume.setStatus("FAILED");
             analysis.setStatus("FAILED");
