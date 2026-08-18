@@ -68,6 +68,12 @@ services:
       INTERVIEW_GUIDE_JAVA_POSTGRES_USERNAME: interview_agent
       INTERVIEW_GUIDE_JAVA_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       INTERVIEW_GUIDE_AGENT_BASE_URL: http://agent:8000
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q 'HTTP'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,6 +90,12 @@ services:
         JRE_IMAGE: ${DOCKER_IMAGE_PREFIX:-}eclipse-temurin:21-jre
         MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-https://repo.maven.apache.org/maven2}
     environment: *java-environment
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q 'HTTP'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
     depends_on:
       postgres:
         condition: service_healthy
@@ -100,6 +112,12 @@ services:
         JRE_IMAGE: ${DOCKER_IMAGE_PREFIX:-}eclipse-temurin:21-jre
         MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-https://repo.maven.apache.org/maven2}
     environment: *java-environment
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q 'HTTP'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
     depends_on:
       postgres:
         condition: service_healthy
@@ -116,9 +134,12 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - interview-backend
-      - resume-backend
-      - knowledgebase-backend
+      interview-backend:
+        condition: service_healthy
+      resume-backend:
+        condition: service_healthy
+      knowledgebase-backend:
+        condition: service_healthy
 
 volumes:
   postgres-data:
