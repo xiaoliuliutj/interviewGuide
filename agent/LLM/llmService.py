@@ -192,7 +192,7 @@ class LlmService:
         if not texts:
             return []
         client, model, dimensions = await self.getEmbeddingClient()
-        response = await self.requestEmbedding(client, model, texts)
+        response = await self.requestEmbedding(client, model, texts, dimensions)
         vectors = [list(item.embedding) for item in sorted(response.data, key=lambda item: item.index)]
         if len(vectors) != len(texts) or any(len(vector) != dimensions for vector in vectors):
             raise LlmOutputSchemaError("embedding 返回数量或向量维度不匹配")
@@ -215,13 +215,23 @@ class LlmService:
             self.embeddingModel = model
         return self.embeddingClient, self.embeddingModel, dimensions
 
-    async def requestEmbedding(self, client: Any, model: str, texts: list[str]) -> Any:
-        """按统一超时和重试策略调用 embedding 接口。"""
+    async def requestEmbedding(
+        self,
+        client: Any,
+        model: str,
+        texts: list[str],
+        dimensions: int,
+    ) -> Any:
+        """按统一超时和重试策略调用 embedding 接口，并显式指定输出维度。"""
         lastError: Exception | None = None
         for attempt in range(self.retryCount + 1):
             try:
                 return await asyncio.wait_for(
-                    client.embeddings.create(model=model, input=texts),
+                    client.embeddings.create(
+                        model=model,
+                        input=texts,
+                        dimensions=dimensions,
+                    ),
                     timeout=self.timeoutSeconds,
                 )
             except TimeoutError as error:

@@ -31,6 +31,8 @@ class DocumentParser:
                 return self.parsePdf(content)
             if suffix == "docx" or contentType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
                 return self.parseDocx(content)
+            if suffix == "doc" or contentType == "application/msword":
+                raise RagDocumentParseError("暂不支持旧版 DOC 格式，请转换为 DOCX 或 PDF 后重新上传")
             return [ParsedSection(content.decode("utf-8"))]
         except RagDocumentParseError:
             raise

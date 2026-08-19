@@ -114,8 +114,8 @@ export default function KnowledgeBaseUploadPage({ onUploadComplete, onBack }: Kn
       <FileUploadCard
       title="上传知识库"
       subtitle="上传文档，面试 Agent 会在生成相关题目时检索其中内容"
-      accept=".pdf,.doc,.docx,.txt,.md"
-      formatHint="支持 PDF、DOCX、DOC、TXT、MD"
+      accept=".pdf,.docx,.txt,.md"
+      formatHint="支持 PDF、DOCX、TXT、MD（不支持旧版 DOC）"
       maxSizeHint="最大 50MB"
       uploading={uploading}
       uploadButtonText="开始上传"
