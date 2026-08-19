@@ -15,17 +15,22 @@ export interface ResumeListItem {
 }
 
 export interface AnalysisItem {
-  id: number;
-  overallScore: number;
-  contentScore: number;
-  structureScore: number;
-  skillMatchScore: number;
-  expressionScore: number;
-  projectScore: number;
-  summary: string;
-  analyzedAt: string;
+  id: string | number;
+  overallScore: number | null;
+  contentScore: number | null;
+  structureScore: number | null;
+  skillMatchScore: number | null;
+  expressionScore: number | null;
+  projectScore: number | null;
+  summary: string | null;
+  analyzedAt: string | null;
   strengths: string[];
-  suggestions: string[];
+  suggestions: Array<{
+    priority: '高' | '中' | '低';
+    category: string;
+    issue: string;
+    recommendation: string;
+  }>;
   status: AnalyzeStatus;
   error: string | null;
 }

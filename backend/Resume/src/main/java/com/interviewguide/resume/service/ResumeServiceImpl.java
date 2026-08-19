@@ -16,6 +16,7 @@ import com.interviewguide.resume.entity.ResumeDeleteOutboxEntity;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.interviewguide.utils.pdf.PdfReportService;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -115,7 +116,7 @@ public class ResumeServiceImpl implements ResumeService {
     @Override
     public List<Map<String, Object>> listResumes(String userId) {
         return resumeMapper.selectList(new LambdaQueryWrapper<ResumeEntity>().eq(ResumeEntity::getUserId, userId).orderByDesc(ResumeEntity::getUpdatedAt))
-                .stream().map(resume -> toView(resume, loadAnalysis(resume.getId()))).toList();
+                .stream().map(resume -> toListView(resume, loadAnalysis(resume.getId()))).toList();
     }
 
     /** 查询详情时向 Agent 对账进行中的任务，Agent 不可用时返回最近数据库状态。 */
@@ -137,7 +138,7 @@ public class ResumeServiceImpl implements ResumeService {
                 // 查询降级为 Java 已保存状态，避免 Agent 暂时不可用阻断历史查看。
             }
         }
-        return toView(resume, analysis);
+        return toDetailView(resume, analysis);
     }
 
     /** 请求 Agent 使用其保存的原文重新建立分析任务。 */
@@ -325,5 +326,118 @@ public class ResumeServiceImpl implements ResumeService {
             view.put("errorMessage", analysis.getErrorMessage());
         }
         return view;
+    }
+
+    /** 将简历记录投影为历史列表使用的稳定前端字段，避免 Java 内部字段名泄漏到页面。 */
+    private Map<String, Object> toListView(ResumeEntity resume, ResumeAnalysisEntity analysis) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        Map<String, Object> evaluation = readEvaluation(analysis);
+        view.put("id", resume.getId());
+        view.put("filename", resume.getFileName());
+        view.put("fileSize", resume.getFileSize());
+        view.put("uploadedAt", resume.getCreatedAt());
+        view.put("latestScore", evaluation.get("overallScore"));
+        view.put("lastAnalyzedAt", analysis == null ? null : analysis.getUpdatedAt());
+        view.put("interviewCount", 0);
+        view.put("analyzeStatus", normalizeAnalysisStatus(analysis));
+        view.put("analyzeError", analysis == null ? null : analysis.getErrorMessage());
+        return view;
+    }
+
+    /** 将简历记录和最新分析转换为详情页契约；面试记录仍由 Interview 服务独立负责。 */
+    private Map<String, Object> toDetailView(ResumeEntity resume, ResumeAnalysisEntity analysis) {
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("id", resume.getId());
+        view.put("filename", resume.getFileName());
+        view.put("fileSize", resume.getFileSize());
+        view.put("contentType", resume.getContentType());
+        view.put("uploadedAt", resume.getCreatedAt());
+        view.put("resumeText", "");
+        view.put("analyses", analysis == null ? List.of() : List.of(toAnalysisView(analysis)));
+        view.put("interviews", List.of());
+        return view;
+    }
+
+    /** 将 Agent 评估 JSON 规范化为分析面板所需的评分、优势和改进建议字段。 */
+    private Map<String, Object> toAnalysisView(ResumeAnalysisEntity analysis) {
+        Map<String, Object> evaluation = readEvaluation(analysis);
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("id", analysis.getId());
+        view.put("status", normalizeAnalysisStatus(analysis));
+        view.put("overallScore", evaluation.get("overallScore"));
+        view.put("contentScore", evaluation.get("contentScore"));
+        view.put("structureScore", evaluation.get("structureScore"));
+        view.put("skillMatchScore", evaluation.get("skillMatchScore"));
+        view.put("expressionScore", evaluation.get("expressionScore"));
+        view.put("projectScore", evaluation.get("projectScore"));
+        view.put("summary", evaluation.get("summary"));
+        view.put("analyzedAt", analysis.getUpdatedAt());
+        view.put("strengths", stringList(evaluation.get("strengths")));
+        view.put("suggestions", suggestionList(evaluation));
+        view.put("error", analysis.getErrorMessage());
+        return view;
+    }
+
+    /** 解析 Agent 保存的评估 JSON；旧记录或处理中记录没有结果时返回空对象。 */
+    private Map<String, Object> readEvaluation(ResumeAnalysisEntity analysis) {
+        if (analysis == null || analysis.getEvaluationJson() == null || analysis.getEvaluationJson().isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(analysis.getEvaluationJson(), new TypeReference<Map<String, Object>>() { });
+        } catch (JsonProcessingException error) {
+            return Map.of();
+        }
+    }
+
+    /** 统一 Agent 的最终失败状态，保证前端轮询能够停止并显示重新分析入口。 */
+    private String normalizeAnalysisStatus(ResumeAnalysisEntity analysis) {
+        if (analysis == null || analysis.getStatus() == null) {
+            return "PENDING";
+        }
+        return analysis.getStatus().startsWith("FAILED") ? "FAILED" : analysis.getStatus();
+    }
+
+    /** 过滤评估中的字符串数组，避免异常数据破坏前端的优势标签渲染。 */
+    private List<String> stringList(Object value) {
+        if (!(value instanceof List<?> values)) {
+            return List.of();
+        }
+        return values.stream().filter(String.class::isInstance).map(String.class::cast).toList();
+    }
+
+    /** 优先将带优先级的问题映射为页面建议卡片，并兼容旧评估中的纯文本建议。 */
+    private List<Map<String, Object>> suggestionList(Map<String, Object> evaluation) {
+        List<Map<String, Object>> suggestions = new ArrayList<>();
+        Object issuesValue = evaluation.get("issues");
+        if (issuesValue instanceof List<?> issues) {
+            for (Object issueValue : issues) {
+                if (!(issueValue instanceof Map<?, ?> issue)) {
+                    continue;
+                }
+                Map<String, Object> suggestion = new LinkedHashMap<>();
+                suggestion.put("priority", chinesePriority(issue.get("priority")));
+                suggestion.put("category", "简历优化");
+                suggestion.put("issue", issue.get("question"));
+                suggestion.put("recommendation", issue.get("suggestion"));
+                suggestions.add(suggestion);
+            }
+        }
+        if (!suggestions.isEmpty()) {
+            return suggestions;
+        }
+        for (String item : stringList(evaluation.get("suggestions"))) {
+            suggestions.add(Map.of("priority", "中", "category", "简历优化", "issue", "优化建议", "recommendation", item));
+        }
+        return suggestions;
+    }
+
+    /** 将 Agent 的英文优先级转换为分析面板已经使用的中文展示值。 */
+    private String chinesePriority(Object priority) {
+        return switch (String.valueOf(priority)) {
+            case "HIGH" -> "高";
+            case "LOW" -> "低";
+            default -> "中";
+        };
     }
 }
