@@ -354,7 +354,7 @@ public class InterviewServiceImpl implements InterviewService {
         AgentRequestContext context = new AgentRequestContext(
                 "v1", UUID.randomUUID().toString(), runId, userId, sessionId, Instant.now()
         );
-        return new AgentOperationRequest(context, mode, capability, prompt, data, stateVersion);
+        return new AgentOperationRequest(context, mode, capability, prompt, data, null, stateVersion);
     }
 
     /** 按用户和会话共同条件读取实体，拒绝跨用户读取或修改。 */

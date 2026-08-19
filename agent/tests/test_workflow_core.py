@@ -125,7 +125,7 @@ def testDocxParserExtractsHeadingAndText() -> None:
 def testNaturalLanguageRouterUsesRestrictedWorkflowSchema() -> None:
     """验证顶层路由只能返回注册工作流，且会解析模型 JSON 而非依赖 Java 任务码。"""
     class FakeLlm:
-        async def requestJson(self, messages, temperature):
+        async def requestJson(self, messages, temperature, outputSchema=None):
             return {"workflow": "INTERVIEW", "intent": "START_INTERVIEW", "confidence": 0.9}
 
     runtime = WorkflowService(FakeLlm(), None, None, None, None, None)
@@ -284,7 +284,7 @@ def testInterviewAnswerFollowsEvaluationRouteThenQuestionGeneration() -> None:
 def testResumeWorkerParsesThenEvaluatesAndPersistsMemory() -> None:
     """验证简历异。"worker 按“文件解析→LLM评估→长期记忆”顺序执行真实闭环。"""
     class FakeLlm:
-        async def requestJson(self, messages, temperature):
+        async def requestJson(self, messages, temperature, outputSchema=None):
             return {
                 "overallScore": 80,
                 "contentScore": 81,
@@ -337,4 +337,4 @@ def testResumeWorkerParsesThenEvaluatesAndPersistsMemory() -> None:
     repository = FakeRepository()
     workflow = ResumeWorkflow(FakeLlm(), FakeMemory(), repository)
     asyncio.run(workflow.processJobs())
-    assert repository.completed.overallScore == 80
+    assert repository.completed["overallScore"] == 80

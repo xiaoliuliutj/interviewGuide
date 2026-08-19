@@ -8,6 +8,7 @@ public record AgentOperationRequest(
         String capability,
         String prompt,
         Map<String, Object> data,
+        Map<String, Object> outputSchema,
         long stateVersion
 ) {
 }

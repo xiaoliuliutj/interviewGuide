@@ -93,7 +93,8 @@ public class ResumeServiceImpl implements ResumeService {
             data.put("fileContent", Base64.getEncoder().encodeToString(file.getBytes()));
             data.put("contentEncoding", "base64");
             AgentOperationRequest request = requestFactory.create(userId, resumeId, runId, "capability", "resume.upload",
-                    promptService.render("Resume/upload.txt", Map.of("targetRole", targetRole, "fileName", resume.getFileName())), data, 0);
+                    promptService.render("Resume/upload.txt", Map.of("targetRole", targetRole, "fileName", resume.getFileName())),
+                    data, resumeEvaluationSchema(), 0);
             applyAgentStatus(resume, analysis, agentCallService.execute(request).data());
             resumeMapper.updateById(resume);
             analysisMapper.updateById(analysis);
@@ -154,7 +155,7 @@ public class ResumeServiceImpl implements ResumeService {
         String runId = UUID.randomUUID().toString();
         AgentOperationRequest request = requestFactory.create(userId, resumeId, runId, "capability", "resume.reanalyze",
                 promptService.render("Resume/reanalyze.txt", Map.of("resumeId", resumeId, "targetRole", targetRole)),
-                Map.of("resumeId", resumeId, "targetRole", targetRole), 0);
+                Map.of("resumeId", resumeId, "targetRole", targetRole), resumeEvaluationSchema(), 0);
         applyAgentStatus(resume, analysis, agentCallService.execute(request).data());
         resume.setTargetRole(targetRole);
         resume.setAgentRunId(runId);
@@ -330,6 +331,39 @@ public class ResumeServiceImpl implements ResumeService {
     /** 读取单份简历的分析投影。 */
     private ResumeAnalysisEntity loadAnalysis(String resumeId) {
         return analysisMapper.selectOne(new LambdaQueryWrapper<ResumeAnalysisEntity>().eq(ResumeAnalysisEntity::getResumeId, resumeId));
+    }
+
+    /** Java 是简历业务输出格式的唯一所有者；Agent 只按本 Schema 通用校验。 */
+    private Map<String, Object> resumeEvaluationSchema() {
+        Map<String, Object> score = Map.of("type", "integer", "minimum", 0, "maximum", 100);
+        Map<String, Object> textList = Map.of("type", "array", "items", Map.of("type", "string"));
+        Map<String, Object> issue = Map.of(
+                "type", "object",
+                "required", List.of("question", "priority", "suggestion"),
+                "additionalProperties", false,
+                "properties", Map.of(
+                        "question", Map.of("type", "string", "minLength", 1, "maxLength", 500),
+                        "priority", Map.of("type", "string", "enum", List.of("HIGH", "MEDIUM", "LOW")),
+                        "suggestion", Map.of("type", "string", "minLength", 1, "maxLength", 1000)
+                )
+        );
+        return Map.of(
+                "type", "object",
+                "required", List.of("overallScore", "contentScore", "structureScore", "skillMatchScore",
+                        "expressionScore", "projectScore", "summary", "strengths", "suggestions", "issues",
+                        "technicalStack", "technicalDepth", "careerPreferences"),
+                "additionalProperties", false,
+                "properties", Map.ofEntries(
+                        Map.entry("overallScore", score), Map.entry("contentScore", score),
+                        Map.entry("structureScore", score), Map.entry("skillMatchScore", score),
+                        Map.entry("expressionScore", score), Map.entry("projectScore", score),
+                        Map.entry("summary", Map.of("type", "string", "minLength", 1, "maxLength", 2000)),
+                        Map.entry("strengths", textList), Map.entry("suggestions", textList),
+                        Map.entry("issues", Map.of("type", "array", "items", issue, "maxItems", 20)),
+                        Map.entry("technicalStack", textList), Map.entry("technicalDepth", textList),
+                        Map.entry("careerPreferences", textList)
+                )
+        );
     }
 
     /** 在 Service 层按 userId 查询，拒绝跨用户读取、下载、重分析和删除。 */

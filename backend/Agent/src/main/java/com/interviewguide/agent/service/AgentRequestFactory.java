@@ -27,10 +27,25 @@ public class AgentRequestFactory {
             Map<String, Object> data,
             long stateVersion
     ) {
+        return create(userId, sessionId, runId, mode, capability, prompt, data, null, stateVersion);
+    }
+
+    /** 创建带业务输出 Schema 的请求；Schema 由 Java 定义，Agent 仅通用校验。 */
+    public AgentOperationRequest create(
+            String userId,
+            String sessionId,
+            String runId,
+            String mode,
+            String capability,
+            String prompt,
+            Map<String, Object> data,
+            Map<String, Object> outputSchema,
+            long stateVersion
+    ) {
         String requestId = UUID.randomUUID().toString();
         AgentRequestContext context = new AgentRequestContext(
                 "v1", requestId, runId, userId, sessionId, Instant.now()
         );
-        return new AgentOperationRequest(context, mode, capability, prompt, data, stateVersion);
+        return new AgentOperationRequest(context, mode, capability, prompt, data, outputSchema, stateVersion);
     }
 }

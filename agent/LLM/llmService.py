@@ -15,6 +15,7 @@ from agent.Common.Exceptions.AgentException import (
     LlmTimeoutError,
 )
 from agent.Common.PromptService import PromptLoader
+from agent.LLM.jsonSchemaValidator import OutputSchemaValidationError, parseJsonObject, validateOutput
 
 
 logger = logging.getLogger(__name__)
@@ -83,16 +84,39 @@ class LlmService:
             temperature=0,
         )
 
-    async def requestJson(self, messages: list[dict[str, str]], temperature: float) -> dict[str, object]:
-        """仅解析模型返回的通信 JSON；业务 data 内部字段由调用方约定，Agent 不负责纠正。"""
-        content = await self.requestCompletion(messages, temperature, jsonMode=True)
-        try:
-            payload = json.loads(content)
-        except json.JSONDecodeError as error:
-            raise LlmOutputSchemaError("模型返回的通信内容不是合法 JSON") from error
-        if not isinstance(payload, dict):
-            raise LlmOutputSchemaError("模型返回的通信 JSON 顶层必须是对象")
-        return payload
+    async def requestJson(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float,
+        outputSchema: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        """通用处理 Java 指定的 JSON 输出：解析、Schema 校验及有限格式纠错，不内置业务字段。"""
+        currentMessages = list(messages)
+        lastError: Exception | None = None
+        for correctionAttempt in range(3):
+            content = await self.requestCompletion(currentMessages, temperature, jsonMode=True)
+            try:
+                payload = parseJsonObject(content)
+                validateOutput(payload, outputSchema)
+                return payload
+            except (json.JSONDecodeError, OutputSchemaValidationError, TypeError, ValueError) as error:
+                lastError = error
+                if correctionAttempt == 2:
+                    break
+                currentMessages.extend([
+                    {"role": "assistant", "content": content},
+                    {
+                        "role": "user",
+                        "content": (
+                            "上一轮输出未通过 JSON 格式校验。请仅返回完整的 JSON 对象，"
+                            "不要 Markdown、解释或额外字段；不要遗漏必填字段。"
+                            f"校验原因：{str(error)[:500]}"
+                        ),
+                    },
+                ])
+        raise LlmOutputSchemaError(
+            f"模型连续 3 次未返回符合 Java 输出 Schema 的 JSON：{str(lastError)[:500]}"
+        ) from lastError
 
     async def requestText(self, messages: list[dict[str, str]], temperature: float) -> str:
         """请求普通文本响应，并拒绝空文本以防止空摘要或空结论被持久化。"""

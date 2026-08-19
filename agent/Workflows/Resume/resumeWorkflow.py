@@ -11,7 +11,7 @@ from agent.Memory.memoryService import MemoryService
 from agent.Common.PromptService import PromptLoader
 from agent.RAG.ragDocumentParser import DocumentParser
 from agent.RAG.ragPolicy import RagPolicy
-from agent.Workflows.Resume.resumeModels import ResumeEvaluation, ResumeJobStatus
+from agent.Workflows.Resume.resumeModels import ResumeJobStatus
 from agent.Workflows.Resume.resumeRepository import ResumeWorkflowRepository
 from agent.Common.AgentRequest import AgentOperationRequest
 import json
@@ -108,6 +108,8 @@ class ResumeWorkflow:
              and payload["targetRole"].strip() else None),
             request.context.run_id,
             request.context.conversation_id,
+            request.output_schema,
+            request.prompt,
         )
         return self.buildResponse(request, "PROCESSING", {
             "type": "RESUME_ANALYSIS",
@@ -134,13 +136,15 @@ class ResumeWorkflow:
                     str(job["resume_id"]),
                     extractedText,
                     str(job.get("target_role") or "通用技术岗位"),
+                    job.get("output_schema") if isinstance(job.get("output_schema"), dict) else None,
+                    str(job.get("output_prompt") or ""),
                 )
                 await self.repository.completeJob(str(job["run_id"]), str(job["resume_id"]), evaluation)
                 try:
                     await self.memoryService.saveResumeEvaluation(
                         str(job["user_id"]),
                         str(job["resume_id"]),
-                        evaluation.model_dump(mode="json"),
+                        evaluation,
                     )
                 except Exception:
                     # 简历评估已持久化完成，长期记忆写入失败不能把已完成的分析任务回滚为失败。
@@ -164,6 +168,8 @@ class ResumeWorkflow:
             self.requireString(payload, "targetRole"),
             request.context.run_id,
             request.context.conversation_id,
+            request.output_schema,
+            request.prompt,
         )
         return self.buildResponse(request, "PROCESSING", {"type": "RESUME_ANALYSIS", **result}, AgentResultStatus.SUCCESS_WITH_DATA)
 
@@ -187,24 +193,23 @@ class ResumeWorkflow:
         )
         return self.buildResponse(request, "COMPLETED", None, AgentResultStatus.SUCCESS_WITHOUT_DATA)
 
-    async def evaluate(self, resumeId: str, text: str, targetRole: str) -> ResumeEvaluation:
+    async def evaluate(self, resumeId: str, text: str, targetRole: str,
+                       outputSchema: dict[str, object] | None, outputPrompt: str) -> dict[str, object]:
         """调用外置简历评估提示词并严格校验六项评分和结构化评估字段。"""
         messages = [
             {"role": "system", "content": self.promptLoader.loadPrompt("Resume/resumeAnalysis.txt")},
-            {
-                "role": "user",
-                "content": json.dumps({
-                    "resumeId": resumeId,
-                    "targetRole": targetRole,
-                    "resumeText": text,
-                }, ensure_ascii=False),
-            },
         ]
-        raw = await self.llmService.requestJson(messages, temperature=0)
-        try:
-            return ResumeEvaluation.model_validate(raw)
-        except Exception as error:
-            raise AgentRequestContractError("简历评估模型返回字段不完整或类型错误") from error
+        if outputPrompt.strip():
+            messages.append({"role": "user", "content": outputPrompt})
+        messages.append({
+            "role": "user",
+            "content": json.dumps({
+                "resumeId": resumeId,
+                "targetRole": targetRole,
+                "resumeText": text,
+            }, ensure_ascii=False),
+        })
+        return await self.llmService.requestJson(messages, temperature=0, outputSchema=outputSchema)
 
     def buildResponse(
         self,

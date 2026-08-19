@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from agent.Common.Exceptions.AgentException import AgentSessionStateError
 from agent.Common.Postgres.PostgresService import PostgresService
-from agent.Workflows.Resume.resumeModels import ResumeEvaluation, ResumeJobStatus
+from agent.Workflows.Resume.resumeModels import ResumeJobStatus
 
 
 class ResumeWorkflowRepository:
@@ -26,6 +26,8 @@ class ResumeWorkflowRepository:
         targetRole: str | None,
         runId: str,
         conversationId: str,
+        outputSchema: dict[str, Any] | None,
+        outputPrompt: str,
     ) -> dict[str, object]:
         """保存原文并创建幂等异步任务，重复 runId 直接返回已有任务。"""
         import hashlib
@@ -61,14 +63,16 @@ class ResumeWorkflowRepository:
                     targetRole,
                 )
                 await connection.execute(
-                    "INSERT INTO agent_resume_job(job_id,run_id,resume_id,user_id,conversation_id,target_role,status) "
-                    "VALUES($1,$2,$3,$4,$5,$6,'PENDING')",
+                    "INSERT INTO agent_resume_job(job_id,run_id,resume_id,user_id,conversation_id,target_role,output_schema,output_prompt,status) "
+                    "VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,'PENDING')",
                     uuid4(),
                     runId,
                     resumeId,
                     userId,
                     conversationId,
                     targetRole,
+                    json.dumps(outputSchema, ensure_ascii=False) if outputSchema is not None else None,
+                    outputPrompt,
                 )
         return {"resumeId": resumeId, "status": ResumeJobStatus.PENDING.value, "runId": runId}
 
@@ -100,7 +104,7 @@ class ResumeWorkflowRepository:
         async with pool.acquire() as connection:
             async with connection.transaction():
                 rows = await connection.fetch(
-                    "SELECT job_id,run_id,resume_id,user_id,conversation_id,target_role,attempt_count FROM agent_resume_job "
+                    "SELECT job_id,run_id,resume_id,user_id,conversation_id,target_role,output_schema,output_prompt,attempt_count FROM agent_resume_job "
                     "WHERE status='PENDING' ORDER BY created_at LIMIT $1 FOR UPDATE SKIP LOCKED",
                     limit,
                 )
@@ -125,7 +129,7 @@ class ResumeWorkflowRepository:
                 text,
             )
 
-    async def completeJob(self, runId: str, resumeId: str, evaluation: ResumeEvaluation) -> None:
+    async def completeJob(self, runId: str, resumeId: str, evaluation: dict[str, Any]) -> None:
         """在同一事务中保存评估 JSON 并将任务标记完成，供长期记忆随后读取。"""
         pool = await self.postgresService.getPool()
         async with pool.acquire() as connection:
@@ -133,7 +137,7 @@ class ResumeWorkflowRepository:
                 await connection.execute(
                     "UPDATE agent_resume_document SET status='COMPLETED',evaluation_json=$2::jsonb,error_message=NULL,updated_at=CURRENT_TIMESTAMP WHERE resume_id=$1::varchar",
                     resumeId,
-                    json.dumps(evaluation.model_dump(mode="json"), ensure_ascii=False),
+                    json.dumps(evaluation, ensure_ascii=False),
                 )
                 await connection.execute(
                     "UPDATE agent_resume_job SET status='COMPLETED',completed_at=CURRENT_TIMESTAMP,error_message=NULL WHERE run_id=$1::varchar",
@@ -182,7 +186,8 @@ class ResumeWorkflowRepository:
             )
         return dict(row) if row else None
 
-    async def recreateJob(self, resumeId: str, userId: str, targetRole: str, runId: str, conversationId: str) -> dict[str, object]:
+    async def recreateJob(self, resumeId: str, userId: str, targetRole: str, runId: str, conversationId: str,
+                          outputSchema: dict[str, Any] | None, outputPrompt: str) -> dict[str, object]:
         """基于已有原文创建新的幂等分析任务，避免 Java 重传或读取正文。"""
         pool = await self.postgresService.getPool()
         async with pool.acquire() as connection:
@@ -202,8 +207,10 @@ class ResumeWorkflowRepository:
                     resumeId, userId, targetRole
                 )
                 await connection.execute(
-                    "INSERT INTO agent_resume_job(job_id,run_id,resume_id,user_id,conversation_id,target_role,status) VALUES($1,$2,$3,$4,$5,$6,'PENDING')",
-                    uuid4(), runId, resumeId, userId, conversationId, targetRole
+                    "INSERT INTO agent_resume_job(job_id,run_id,resume_id,user_id,conversation_id,target_role,output_schema,output_prompt,status) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,'PENDING')",
+                    uuid4(), runId, resumeId, userId, conversationId, targetRole,
+                    json.dumps(outputSchema, ensure_ascii=False) if outputSchema is not None else None,
+                    outputPrompt,
                 )
         return {"resumeId": resumeId, "status": ResumeJobStatus.PENDING.value, "runId": runId}
 
