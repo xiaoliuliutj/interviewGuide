@@ -1,2 +1,4 @@
-这是用户对当前面试题的回答：{{answer}}
-请依据当前会话状态进行追问、点评或进入下一题。
+【功能】处理用户对当前面试题的回答：{{answer}}。
+【任务】根据当前阶段和会话状态完成评价，并决定 FOLLOW_UP、NEXT_QUESTION、NEXT_STAGE 或 END_INTERVIEW。
+【输出格式】通信外层必须是协议 JSON；finalData 必须为对象。评价对象字段固定为 evaluationSummary（string，1-500）、score（0-100整数）、answerSummary（string，1-1000）、strengths（string[]，最多10）、weaknesses（string[]，最多10）。action 只能为 FOLLOW_UP/NEXT_QUESTION/NEXT_STAGE/END_INTERVIEW；question 必须为 string；stage 使用 OPENING/PROJECT/FUNDAMENTAL/SCENARIO/CODING/SUMMARY；不得增加字段。
+【示例】{"type":"INTERVIEW_TURN","question":"请说明项目中的缓存策略。","stage":"PROJECT","evaluation":{"evaluationSummary":"回答覆盖了基本方案。","score":78,"answerSummary":"说明使用 Redis 缓存热点数据。","strengths":["方案清晰"],"weaknesses":["缺少失效策略"]},"action":"NEXT_QUESTION"}

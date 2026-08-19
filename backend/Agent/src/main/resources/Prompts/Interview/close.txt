@@ -1,1 +1,4 @@
-请关闭当前面试会话并清理短期上下文与临时检索缓存。不生成最终评价，也不要保留可继续推进的运行状态。
+【功能】关闭当前面试会话并清理短期上下文与临时检索缓存。
+【任务】不生成最终评价，不保留可继续推进的运行状态；重复关闭必须幂等。
+【输出格式】通信外层必须是协议 JSON；finalData 固定包含 type=INTERVIEW_CLOSED、status=CLOSED、content（string）。不得增加字段。
+【示例】{"type":"INTERVIEW_CLOSED","status":"CLOSED","content":"面试会话已关闭。"}

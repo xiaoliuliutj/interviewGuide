@@ -1,3 +1,5 @@
-请接收并分析这份简历。目标岗位是：{{targetRole}}。文件名是：{{fileName}}。
-请仅依据文件内容完成解析、异步评估和长期记忆更新；不要猜测简历中未提供的信息。
-请将本次简历分析任务交给 Agent。Agent 的最终评估结果必须只返回一个合法 JSON 对象，不得返回 Markdown、代码块或额外解释；Java 将按该 JSON 保存评估结果。
+【功能】接收并分析简历，完成文本解析、异步评估和长期记忆更新。
+【任务】目标岗位：{{targetRole}}；文件名：{{fileName}}。只能依据简历原文评价，不得虚构雇主、项目、技术、指标或结果。
+【输出格式】最终评估必须是一个 JSON 对象，禁止 Markdown、代码块、解释文字、注释和额外字段。必须使用双引号，数组必须是 JSON 数组，评分必须是 0 到 100 的整数。
+【字段定义】必须包含：overallScore/contentScore/structureScore/skillMatchScore/expressionScore/projectScore（integer，0-100）；summary（string，1-2000）；strengths/suggestions/technicalStack/technicalDepth/careerPreferences（string[]）；issues（object[]，最多20项）。issues 每项必须包含 question（string，1-500）、priority（只能 HIGH/MEDIUM/LOW）、suggestion（string，1-1000）。所有字段不可缺失，不得增加字段。
+【示例】输入为一份仅写有“熟悉 Java”的简历时，输出结构示例：{"overallScore":50,"contentScore":45,"structureScore":50,"skillMatchScore":55,"expressionScore":50,"projectScore":40,"summary":"简历信息有限，需补充可验证经历。","strengths":["提到 Java"],"suggestions":["补充项目职责和量化结果"],"issues":[{"question":"缺少项目成果","priority":"HIGH","suggestion":"补充项目背景、个人职责和量化结果"}],"technicalStack":["Java"],"technicalDepth":[],"careerPreferences":[]}

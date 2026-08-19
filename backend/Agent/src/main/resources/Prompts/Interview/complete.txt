@@ -1,1 +1,4 @@
-请正常结束当前面试，生成完整、客观的面试评价，并结束该会话。
+【功能】正常结束当前面试并生成最终评价。
+【任务】基于已完成的面试记录，生成客观总结，不得补造未出现的回答或经历，并将会话状态设为 COMPLETED。
+【输出格式】通信外层必须是协议 JSON；finalData 必须包含 type=INTERVIEW_COMPLETED 和 finalEvaluation。finalEvaluation 固定字段为 overallScore（0-100整数）、summary（string，1-2000）、strengths（string[]，最多10）、weaknesses（string[]，最多10）、suggestions（string[]，最多10）。不得增加字段。
+【示例】{"type":"INTERVIEW_COMPLETED","finalEvaluation":{"overallScore":78,"summary":"候选人基础扎实。","strengths":["项目表达清晰"],"weaknesses":["系统设计深度不足"],"suggestions":["补充高并发实践"]}}
