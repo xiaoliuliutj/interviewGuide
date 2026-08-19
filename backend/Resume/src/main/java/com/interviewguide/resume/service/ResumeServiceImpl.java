@@ -294,7 +294,13 @@ public class ResumeServiceImpl implements ResumeService {
     /** 将 Agent 返回的任务结果保存为 Java 可展示的最小投影。 */
     private void applyAgentStatus(ResumeEntity resume, ResumeAnalysisEntity analysis, Map<String, Object> data) {
         String status = data == null ? "PROCESSING" : String.valueOf(data.getOrDefault("status", "PROCESSING"));
-        String localStatus = "COMPLETED".equals(status) ? "COMPLETED" : status.startsWith("FAILED") ? "FAILED" : "PROCESSING";
+        Object errorValue = data == null ? null : data.get("errorMessage");
+        String errorMessage = errorValue == null ? null : String.valueOf(errorValue).trim();
+        // Agent 的可重试任务可能返回 PENDING/PROCESSING，同时携带本次失败原因；
+        // 对前端先标记为 FAILED，避免页面一直显示处理中并隐藏具体错误。
+        String localStatus = "COMPLETED".equals(status) ? "COMPLETED"
+                : status.startsWith("FAILED") || (errorMessage != null && !errorMessage.isBlank()) ? "FAILED"
+                : "PROCESSING";
         resume.setStatus(localStatus);
         resume.setUpdatedAt(Instant.now());
         analysis.setStatus(localStatus);
@@ -306,7 +312,7 @@ public class ResumeServiceImpl implements ResumeService {
                 throw new IllegalStateException("Agent 评估结果无法保存", error);
             }
         }
-        if (data != null && data.get("errorMessage") != null) analysis.setErrorMessage(String.valueOf(data.get("errorMessage")));
+        if (errorMessage != null && !errorMessage.isBlank()) analysis.setErrorMessage(errorMessage);
     }
 
     /** 将同步 Agent 失败响应中的 data.errorMessage 落库，供列表和详情接口返回给前端。 */
