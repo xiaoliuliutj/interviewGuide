@@ -95,6 +95,11 @@ class LlmService:
         lastError: Exception | None = None
         for correctionAttempt in range(3):
             content = await self.requestCompletion(currentMessages, temperature, jsonMode=True)
+            logger.info(
+                "模型原始输出，jsonCorrectionAttempt=%s，content=%s",
+                correctionAttempt + 1,
+                content,
+            )
             try:
                 payload = parseJsonObject(content)
                 validateOutput(payload, outputSchema)
@@ -136,6 +141,12 @@ class LlmService:
         for attempt in range(self.retryCount + 1):
             try:
                 client, model = await self.getClient()
+                logger.info(
+                    "模型请求消息，providerAttempt=%s，jsonMode=%s，messages=%s",
+                    attempt + 1,
+                    jsonMode,
+                    json.dumps(messages, ensure_ascii=False),
+                )
                 response = await asyncio.wait_for(
                     model.ainvoke(messages),
                     timeout=self.timeoutSeconds,

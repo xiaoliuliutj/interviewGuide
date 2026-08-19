@@ -209,6 +209,13 @@ class ResumeWorkflow:
                 "resumeText": text,
             }, ensure_ascii=False),
         })
+        logger.info(
+            "简历评估模型输入，resumeId=%s，javaPrompt=%s，outputSchema=%s，resumeText=%s",
+            resumeId,
+            outputPrompt,
+            json.dumps(outputSchema, ensure_ascii=False),
+            text,
+        )
         return await self.llmService.requestJson(messages, temperature=0, outputSchema=outputSchema)
 
     def buildResponse(
