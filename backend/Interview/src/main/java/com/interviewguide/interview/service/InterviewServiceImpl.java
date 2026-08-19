@@ -7,7 +7,6 @@ import com.interviewguide.agent.dto.AgentOperationRequest;
 import com.interviewguide.agent.dto.AgentOperationResponse;
 import com.interviewguide.agent.dto.AgentRequestContext;
 import com.interviewguide.agent.service.AgentCallService;
-import com.interviewguide.agent.service.AgentPromptService;
 import com.interviewguide.interview.entity.InterviewSessionEntity;
 import com.interviewguide.interview.entity.InterviewTurnEntity;
 import com.interviewguide.interview.entity.InterviewCloseOutboxEntity;
@@ -35,7 +34,6 @@ public class InterviewServiceImpl implements InterviewService {
     private final InterviewTurnMapper interviewTurnMapper;
     private final AgentCallService agentCallService;
     private final ObjectMapper objectMapper;
-    private final AgentPromptService promptService;
     private final PdfReportService pdfReportService;
     private final InterviewCloseOutboxMapper closeOutboxMapper;
     private static final long CLOSE_RETRY_INTERVAL_MILLIS = TimeUnit.MINUTES.toMillis(30);
@@ -47,7 +45,6 @@ public class InterviewServiceImpl implements InterviewService {
             InterviewTurnMapper interviewTurnMapper,
             AgentCallService agentCallService,
             ObjectMapper objectMapper,
-            AgentPromptService promptService,
             PdfReportService pdfReportService,
             InterviewCloseOutboxMapper closeOutboxMapper
     ) {
@@ -55,7 +52,6 @@ public class InterviewServiceImpl implements InterviewService {
         this.interviewTurnMapper = interviewTurnMapper;
         this.agentCallService = agentCallService;
         this.objectMapper = objectMapper;
-        this.promptService = promptService;
         this.pdfReportService = pdfReportService;
         this.closeOutboxMapper = closeOutboxMapper;
     }
@@ -107,12 +103,7 @@ public class InterviewServiceImpl implements InterviewService {
         data.put("resumeId", resumeId);
         data.put("targetRole", targetRole);
         AgentOperationRequest agentRequest = createRequest(
-                userId, sessionId, UUID.randomUUID().toString(), promptService.render("Interview/start.txt", Map.of(
-                        "resumeId", resumeId,
-                        "targetRole", targetRole,
-                        "difficulty", difficulty,
-                        "interviewDirection", String.valueOf(entity.getInterviewDirection())
-                )),
+                userId, sessionId, UUID.randomUUID().toString(), "",
                 data, 0, "conversation", null
         );
         try {
@@ -154,8 +145,8 @@ public class InterviewServiceImpl implements InterviewService {
         String runId = runIdValue instanceof String value && !value.isBlank()
                 ? value.trim() : UUID.randomUUID().toString();
         AgentOperationRequest agentRequest = createRequest(
-                userId, sessionId, runId, promptService.render("Interview/answer.txt", Map.of("answer", answer)),
-                Map.of("resumeId", entity.getResumeId()), entity.getStateVersion(), "conversation", null
+                userId, sessionId, runId, "",
+                Map.of("resumeId", entity.getResumeId(), "answer", answer), entity.getStateVersion(), "conversation", null
         );
         AgentOperationResponse agentResponse = agentCallService.execute(agentRequest);
         Map<String, Object> data = agentResponse.data() == null ? Map.of() : agentResponse.data();
@@ -191,7 +182,7 @@ public class InterviewServiceImpl implements InterviewService {
             return;
         }
         AgentOperationRequest request = createRequest(
-                userId, sessionId, UUID.randomUUID().toString(), promptService.render("Interview/complete.txt", Map.of()),
+                userId, sessionId, UUID.randomUUID().toString(), "",
                 Map.of(), entity.getStateVersion(), "capability", "interview.complete"
         );
         AgentOperationResponse response = agentCallService.execute(request);
@@ -215,7 +206,7 @@ public class InterviewServiceImpl implements InterviewService {
             return;
         }
         AgentOperationRequest request = createRequest(
-                userId, sessionId, UUID.randomUUID().toString(), promptService.render("Interview/pause.txt", Map.of()),
+                userId, sessionId, UUID.randomUUID().toString(), "",
                 Map.of(), entity.getStateVersion(), "capability", "interview.pause"
         );
         AgentOperationResponse response = agentCallService.execute(request);
@@ -311,7 +302,7 @@ public class InterviewServiceImpl implements InterviewService {
         }
         try {
             AgentOperationRequest request = createRequest(event.getUserId(), event.getSessionId(), event.getRunId(),
-                    promptService.render("Interview/close.txt", Map.of()), Map.of(), session.getStateVersion(),
+                    "", Map.of(), session.getStateVersion(),
                     "capability", "interview.close");
             agentCallService.execute(request);
             deleteLocalSession(event.getSessionId());
@@ -354,7 +345,7 @@ public class InterviewServiceImpl implements InterviewService {
         AgentRequestContext context = new AgentRequestContext(
                 "v1", UUID.randomUUID().toString(), runId, userId, sessionId, Instant.now()
         );
-        return new AgentOperationRequest(context, mode, capability, prompt, data, null, stateVersion);
+        return new AgentOperationRequest(context, mode, capability, prompt, data, stateVersion);
     }
 
     /** 按用户和会话共同条件读取实体，拒绝跨用户读取或修改。 */
@@ -389,7 +380,7 @@ public class InterviewServiceImpl implements InterviewService {
     private void compensateFailedCreation(String userId, String sessionId) {
         try {
             AgentOperationRequest request = createRequest(
-                    userId, sessionId, UUID.randomUUID().toString(), promptService.render("Interview/close.txt", Map.of()),
+                    userId, sessionId, UUID.randomUUID().toString(), "",
                     Map.of(), 0, "capability", "interview.close"
             );
             agentCallService.execute(request);

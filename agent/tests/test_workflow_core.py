@@ -1,5 +1,6 @@
 from io import BytesIO
 import asyncio
+import json
 
 import pytest
 
@@ -125,8 +126,8 @@ def testDocxParserExtractsHeadingAndText() -> None:
 def testNaturalLanguageRouterUsesRestrictedWorkflowSchema() -> None:
     """验证顶层路由只能返回注册工作流，且会解析模型 JSON 而非依赖 Java 任务码。"""
     class FakeLlm:
-        async def requestJson(self, messages, temperature, outputSchema=None):
-            return {"workflow": "INTERVIEW", "intent": "START_INTERVIEW", "confidence": 0.9}
+        async def requestCompletion(self, messages, temperature, jsonMode):
+            return json.dumps({"workflow": "INTERVIEW", "intent": "START_INTERVIEW", "confidence": 0.9})
 
     runtime = WorkflowService(FakeLlm(), None, None, None, None, None)
     request = AgentOperationRequest.model_validate({
@@ -147,8 +148,8 @@ def testNaturalLanguageRouterUsesRestrictedWorkflowSchema() -> None:
 def testInterviewInitializationPersistsOnlyAfterPlanValidation() -> None:
     """验证自然语言启动面试会先生成合规计划，再提交开场状态和统一响应。"""
     class FakeLlm:
-        async def requestJson(self, messages, temperature):
-            return buildPlan().model_dump(mode="json")
+        async def requestCompletion(self, messages, temperature, jsonMode):
+            return json.dumps(buildPlan().model_dump(mode="json"))
 
     class FakeMemoryRepository:
         async def loadLongTermMemory(self, userId, resumeId):
@@ -218,8 +219,8 @@ def testInterviewAnswerFollowsEvaluationRouteThenQuestionGeneration() -> None:
                 {"question": "请说明线程池拒绝策略的适用场景。"},
             ]
 
-        async def requestJson(self, messages, temperature):
-            return self.responses.pop(0)
+        async def requestCompletion(self, messages, temperature, jsonMode):
+            return json.dumps(self.responses.pop(0))
 
     class FakeMemoryRepository:
         async def loadLongTermMemory(self, userId, resumeId):
@@ -284,8 +285,8 @@ def testInterviewAnswerFollowsEvaluationRouteThenQuestionGeneration() -> None:
 def testResumeWorkerParsesThenEvaluatesAndPersistsMemory() -> None:
     """验证简历异。"worker 按“文件解析→LLM评估→长期记忆”顺序执行真实闭环。"""
     class FakeLlm:
-        async def requestJson(self, messages, temperature, outputSchema=None):
-            return {
+        async def requestCompletion(self, messages, temperature, jsonMode):
+            return json.dumps({
                 "overallScore": 80,
                 "contentScore": 81,
                 "structureScore": 79,
@@ -299,7 +300,7 @@ def testResumeWorkerParsesThenEvaluatesAndPersistsMemory() -> None:
                 "technicalStack": ["Java"],
                 "technicalDepth": ["Spring"],
                 "careerPreferences": ["后端开。"],
-            }
+            })
 
     class FakeRepository:
         def __init__(self):
@@ -337,4 +338,4 @@ def testResumeWorkerParsesThenEvaluatesAndPersistsMemory() -> None:
     repository = FakeRepository()
     workflow = ResumeWorkflow(FakeLlm(), FakeMemory(), repository)
     asyncio.run(workflow.processJobs())
-    assert repository.completed["overallScore"] == 80
+    assert repository.completed.overallScore == 80

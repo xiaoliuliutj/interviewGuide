@@ -14,6 +14,7 @@ from agent.Common.Exceptions.AgentException import (
 )
 from agent.Common.AgentResults import AgentError, AgentOperationResponse, AgentResultStatus, AgentTaskType
 from agent.LLM.llmService import LlmService
+from agent.LLM.structuredOutput import StructuredOutputInvoker
 from agent.Memory.memoryService import MemoryService
 from agent.Common.PromptService import PromptLoader
 from agent.RAG.ragService import RagService
@@ -54,6 +55,7 @@ class InterviewWorkflow:
         self.ragService = ragService
         self.repository = repository
         self.promptLoader = promptLoader or PromptLoader()
+        self.structuredOutput = StructuredOutputInvoker(llmService, self.promptLoader)
         self.dataMasker = DataMasker()
         self.inactiveMinutes = inactiveMinutes
 
@@ -186,7 +188,10 @@ class InterviewWorkflow:
                 return AgentOperationResponse.model_validate(replay)
             raise AgentSessionStateError("当前回合正在处理中")
         try:
-            answer = request.prompt.strip()
+            answerValue = request.payload.get("answer")
+            if not isinstance(answerValue, str) or not answerValue.strip():
+                raise AgentRequestContractError("data.answer is required")
+            answer = answerValue.strip()
             evaluation = await self.evaluateAnswer(request, state, answer)
             if state.currentStage == InterviewStage.OPENING:
                 state.plan = await self.createPlan(
@@ -374,12 +379,13 @@ class InterviewWorkflow:
 
     async def resolveIntent(self, request: AgentOperationRequest, state: InterviewSessionState) -> InterviewIntent:
         """用受限 JSON 分类自然语言控制意图，普通回答默认被安全地归入回答处理。"""
+        answer = request.payload.get("answer", request.prompt)
         payload = await self.invokeStructured(
             "Interview/interviewSessionIntent.txt",
             {
                 "currentStatus": state.status.value,
                 "currentStage": state.currentStage.value,
-                "userPrompt": request.prompt,
+                "userPrompt": answer,
             },
             InterviewIntentDecision,
         )
@@ -461,7 +467,7 @@ class InterviewWorkflow:
                 "nextStage": self.getNextStage(state.currentStage).value if self.getNextStage(state.currentStage) else None,
                 "stagePlan": state.plan.getStage(state.currentStage).model_dump(mode="json"),
                 "progress": self.buildProgress(state),
-                "explicitCompletionRequested": "结束" in request.prompt or "完成" in request.prompt,
+                "explicitCompletionRequested": "结束" in str(request.payload.get("answer", request.prompt)) or "完成" in str(request.payload.get("answer", request.prompt)),
             },
             InterviewRoute,
         )
@@ -658,7 +664,7 @@ class InterviewWorkflow:
             request.context.run_id,
             request.state_version,
             response.model_dump_json(by_alias=True),
-            self.dataMasker.maskText(request.prompt),
+            self.dataMasker.maskText(str(request.payload.get("answer", request.prompt))),
             self.dataMasker.maskText(summary.summary),
             turn,
         )
@@ -724,14 +730,13 @@ class InterviewWorkflow:
             return
 
     async def invokeStructured(self, promptPath: str, payload: dict[str, object], schema):
-        """加载外置提示词、调用统一 LLM 服务并用 Pydantic 严格验证每个节点输出。"""
-        messages = [
-            {"role": "system", "content": self.promptLoader.loadPrompt(promptPath)},
-            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-        ]
+        """使用 Agent 内置提示词、Pydantic Schema 和统一纠错重试生成结构化业务输出。"""
         try:
-            raw = await self.llmService.requestJson(messages, temperature=0)
-            return schema.model_validate(raw)
+            return await self.structuredOutput.invoke(
+                schema=schema,
+                businessPrompt=self.promptLoader.loadPrompt(promptPath),
+                inputPayload=payload,
+            )
         except Exception as error:
             if isinstance(error, LlmOutputSchemaError):
                 raise

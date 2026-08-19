@@ -114,8 +114,8 @@ class AgentApplicationService:
         payload["userId"] = request.context.principal_id
         payload["runId"] = request.context.run_id
         if request.mode == "conversation":
-            if not request.prompt.strip():
-                raise AgentRequestContractError("conversation 请求必须提供 prompt")
+            if not request.prompt.strip() and not request.data:
+                raise AgentRequestContractError("conversation 请求必须提供 prompt 或 data")
             return payload
 
         requiredFields = {

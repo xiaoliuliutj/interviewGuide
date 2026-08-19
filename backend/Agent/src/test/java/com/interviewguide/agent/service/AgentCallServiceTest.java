@@ -98,7 +98,7 @@ class AgentCallServiceTest {
     private AgentOperationRequest request() {
         return new AgentOperationRequest(
                 new AgentRequestContext("v1", "request-1", "run-1", "user-1", "session-1", Instant.now()),
-                "conversation", null, "测试提示词", Map.of(), null, 0
+                "conversation", null, "测试提示词", Map.of(), 0
         );
     }
 

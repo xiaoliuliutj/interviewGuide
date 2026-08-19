@@ -327,7 +327,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private AgentOperationRequest createRequest(String userId, String capability, Map<String, Object> payload, String runId) {
         String requestId = UUID.randomUUID().toString();
         AgentRequestContext context = new AgentRequestContext("v1", requestId, runId, userId, requestId, Instant.now());
-        return new AgentOperationRequest(context, "capability", capability, "", payload, null, 0);
+        return new AgentOperationRequest(context, "capability", capability, "", payload, 0);
     }
 
     private KnowledgeBaseEntity requireOwned(String userId, Long id) {

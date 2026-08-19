@@ -15,7 +15,6 @@ from agent.Common.Exceptions.AgentException import (
     LlmTimeoutError,
 )
 from agent.Common.PromptService import PromptLoader
-from agent.LLM.jsonSchemaValidator import OutputSchemaValidationError, parseJsonObject, validateOutput
 
 
 logger = logging.getLogger(__name__)
@@ -88,40 +87,16 @@ class LlmService:
         self,
         messages: list[dict[str, str]],
         temperature: float,
-        outputSchema: dict[str, object] | None = None,
     ) -> dict[str, object]:
-        """通用处理 Java 指定的 JSON 输出：解析、Schema 校验及有限格式纠错，不内置业务字段。"""
-        currentMessages = list(messages)
-        lastError: Exception | None = None
-        for correctionAttempt in range(3):
-            content = await self.requestCompletion(currentMessages, temperature, jsonMode=True)
-            logger.info(
-                "模型原始输出，jsonCorrectionAttempt=%s，content=%s",
-                correctionAttempt + 1,
-                content,
-            )
-            try:
-                payload = parseJsonObject(content)
-                validateOutput(payload, outputSchema)
-                return payload
-            except (json.JSONDecodeError, OutputSchemaValidationError, TypeError, ValueError) as error:
-                lastError = error
-                if correctionAttempt == 2:
-                    break
-                currentMessages.extend([
-                    {"role": "assistant", "content": content},
-                    {
-                        "role": "user",
-                        "content": (
-                            "上一轮输出未通过 JSON 格式校验。请仅返回完整的 JSON 对象，"
-                            "不要 Markdown、解释或额外字段；不要遗漏必填字段。"
-                            f"校验原因：{str(error)[:500]}"
-                        ),
-                    },
-                ])
-        raise LlmOutputSchemaError(
-            f"模型连续 3 次未返回符合 Java 输出 Schema 的 JSON：{str(lastError)[:500]}"
-        ) from lastError
+        """解析 Agent 通信协议所需的 JSON 对象；业务输出校验由 StructuredOutputInvoker 负责。"""
+        content = await self.requestCompletion(messages, temperature, jsonMode=True)
+        try:
+            payload = json.loads(content)
+        except json.JSONDecodeError as error:
+            raise LlmOutputSchemaError("模型返回的通信内容不是合法 JSON") from error
+        if not isinstance(payload, dict):
+            raise LlmOutputSchemaError("模型返回的通信 JSON 顶层必须是对象")
+        return payload
 
     async def requestText(self, messages: list[dict[str, str]], temperature: float) -> str:
         """请求普通文本响应，并拒绝空文本以防止空摘要或空结论被持久化。"""
@@ -141,12 +116,6 @@ class LlmService:
         for attempt in range(self.retryCount + 1):
             try:
                 client, model = await self.getClient()
-                logger.info(
-                    "模型请求消息，providerAttempt=%s，jsonMode=%s，messages=%s",
-                    attempt + 1,
-                    jsonMode,
-                    json.dumps(messages, ensure_ascii=False),
-                )
                 response = await asyncio.wait_for(
                     model.ainvoke(messages),
                     timeout=self.timeoutSeconds,
@@ -222,8 +191,12 @@ class LlmService:
         statusCode = getattr(error, "status_code", None)
         if "timeout" in message or "timed out" in message:
             return LlmTimeoutError("OpenAI 请求超时")
-        if statusCode in {401, 403}:
+        if statusCode == 401:
             return LlmAuthenticationError("OpenAI 鉴权失败")
+        if statusCode == 403 and "bad_response_status_code" in message:
+            return LlmProviderUnavailableError("模型网关拒绝当前请求")
+        if statusCode == 403:
+            return LlmAuthenticationError("OpenAI 访问被拒绝")
         if statusCode == 429:
             return LlmRateLimitError("OpenAI 请求触发限流")
         if statusCode == 400 and ("context" in message or "token" in message):

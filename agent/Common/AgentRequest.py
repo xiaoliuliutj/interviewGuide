@@ -27,7 +27,6 @@ class AgentOperationRequest(BaseModel):
     capability: str | None = None
     prompt: str = ""
     data: dict[str, Any] = Field(default_factory=dict)
-    output_schema: dict[str, Any] | None = Field(default=None, alias="outputSchema")
     state_version: int = Field(default=0, alias="stateVersion", ge=0)
     task_type: AgentTaskType = Field(default=AgentTaskType.CONVERSATION, exclude=True)
 

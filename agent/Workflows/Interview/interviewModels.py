@@ -52,7 +52,7 @@ class InterviewIntent(StrEnum):
 class InterviewPlanStage(BaseModel):
     """描述单个阶段的题目范围和硬性预算，不预生成具体问题。"""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     stage: InterviewStage
     topics: list[str] = Field(default_factory=list, max_length=12)
@@ -65,7 +65,7 @@ class InterviewPlanStage(BaseModel):
 class InterviewPlan(BaseModel):
     """保存一次面试的稳定计划，防止每轮模型调用重新规划面试。"""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     candidateSummary: str = Field(min_length=1, max_length=2000)
     strategySummary: str = Field(min_length=1, max_length=2000)
@@ -99,6 +99,8 @@ class InterviewPlan(BaseModel):
 class InterviewEvaluation(BaseModel):
     """描述当前回答质量，评价节点不能直接决定流程跳转。"""
 
+    model_config = ConfigDict(extra="forbid")
+
     evaluationSummary: str = Field(min_length=1, max_length=500)
     score: int = Field(ge=0, le=100)
     answerSummary: str = Field(min_length=1, max_length=1000)
@@ -109,6 +111,8 @@ class InterviewEvaluation(BaseModel):
 class InterviewRoute(BaseModel):
     """描述受限路由节点建议的动作和下一题抽象主题。"""
 
+    model_config = ConfigDict(extra="forbid")
+
     action: InterviewAction
     nextTopic: str | None = Field(default=None, min_length=1, max_length=300)
 
@@ -116,11 +120,15 @@ class InterviewRoute(BaseModel):
 class InterviewQuestion(BaseModel):
     """定义问题生成节点的唯一输出，避免其混入评分或流程字段。"""
 
+    model_config = ConfigDict(extra="forbid")
+
     question: str = Field(min_length=1, max_length=1200)
 
 
 class InterviewSummary(BaseModel):
     """定义面试结束时可展示且可写入长期记忆的最终评价。"""
+
+    model_config = ConfigDict(extra="forbid")
 
     overallScore: int = Field(ge=0, le=100)
     summary: str = Field(min_length=1, max_length=2000)
@@ -176,6 +184,8 @@ class InterviewSessionState(BaseModel):
 class WorkflowIntentDecision(BaseModel):
     """限定顶层自然语言路由输出，禁止模型返回任意代码路径。"""
 
+    model_config = ConfigDict(extra="forbid")
+
     workflow: Literal["INTERVIEW", "RESUME_ANALYSIS", "GENERAL_CONVERSATION"]
     intent: str = Field(min_length=1, max_length=64)
     confidence: float = Field(ge=0, le=1)
@@ -183,6 +193,8 @@ class WorkflowIntentDecision(BaseModel):
 
 class InterviewIntentDecision(BaseModel):
     """限定会话内控制意图，普通回答默认进入回答评估流程。"""
+
+    model_config = ConfigDict(extra="forbid")
 
     intent: InterviewIntent
     confidence: float = Field(ge=0, le=1)

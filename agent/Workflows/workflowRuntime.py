@@ -1,11 +1,10 @@
 """统一自然语言入口和业务工作流路由。"""
 
-import json
-
 from agent.Agents.AgentLoop import AgentLoop
 from agent.Common.AgentModels import AgentLoopCommand
 from agent.Common.Exceptions.AgentException import AgentRequestContractError, LlmOutputSchemaError
 from agent.LLM.llmService import LlmService
+from agent.LLM.structuredOutput import StructuredOutputInvoker
 from agent.Common.PromptService import PromptLoader
 from agent.Common.AgentRequest import AgentOperationRequest
 from agent.Workflows.Interview.interviewModels import WorkflowIntentDecision
@@ -36,6 +35,7 @@ class WorkflowRuntime:
         self.interviewRepository = interviewRepository
         self.resumeRepository = resumeRepository
         self.promptLoader = promptLoader or PromptLoader()
+        self.structuredOutput = StructuredOutputInvoker(llmService, self.promptLoader)
 
     async def handleConversation(self, request: AgentOperationRequest):
         """优先按已有会话绑定路由，首次请求才调用顶层自然语言分类器。"""
@@ -45,6 +45,8 @@ class WorkflowRuntime:
         )
         if activeInterview is not None:
             return await self.interviewWorkflow.handleRequest(request)
+        if self._isInterviewInitialization(request.data):
+            return await self.interviewWorkflow.handleRequest(request)
         decision = await self.resolveWorkflow(request)
         if decision.workflow == "INTERVIEW":
             return await self.interviewWorkflow.handleRequest(request)
@@ -53,6 +55,11 @@ class WorkflowRuntime:
         return await self.agentLoop.run(
             AgentLoopCommand(request=request, parsedPayload=request.payload),
         )
+
+    @staticmethod
+    def _isInterviewInitialization(data: dict[str, object]) -> bool:
+        """识别 Java 发送的确定性建场数据，避免依赖空 prompt 让模型猜测任务类型。"""
+        return all(isinstance(data.get(field), str) and data[field].strip() for field in ("resumeId", "targetRole"))
 
     async def handleResumeCapability(self, request: AgentOperationRequest):
         """处理必须携带二进制文件或需要精确任务状态的非对话简历能力。"""
@@ -80,13 +87,12 @@ class WorkflowRuntime:
 
     async def resolveWorkflow(self, request: AgentOperationRequest) -> WorkflowIntentDecision:
         """调用受限顶层路由提示词，模型只能返回已注册工作流名称。"""
-        messages = [
-            {"role": "system", "content": self.promptLoader.loadPrompt("Interview/interviewIntentRouter.txt")},
-            {"role": "user", "content": json.dumps({"prompt": request.prompt, "data": request.data}, ensure_ascii=False)},
-        ]
         try:
-            raw = await self.llmService.requestJson(messages, temperature=0)
-            decision = WorkflowIntentDecision.model_validate(raw)
+            decision = await self.structuredOutput.invoke(
+                schema=WorkflowIntentDecision,
+                businessPrompt=self.promptLoader.loadPrompt("Interview/interviewIntentRouter.txt"),
+                inputPayload={"prompt": request.prompt, "data": request.data},
+            )
         except Exception as error:
             raise LlmOutputSchemaError("自然语言工作流路由结果不符合协议") from error
         if decision.confidence < 0.55:

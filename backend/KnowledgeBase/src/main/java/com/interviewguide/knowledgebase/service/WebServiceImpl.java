@@ -162,7 +162,7 @@ public class WebServiceImpl implements WebService {
                 requestId,
                 Instant.now()
         );
-        return new AgentOperationRequest(context, "capability", capability, "", data, null, 0);
+        return new AgentOperationRequest(context, "capability", capability, "", data, 0);
     }
 
     /**
@@ -206,7 +206,7 @@ public class WebServiceImpl implements WebService {
                 requestId,
                 Instant.now()
         );
-        return new AgentOperationRequest(context, "capability", capability, "", data, null, 0);
+        return new AgentOperationRequest(context, "capability", capability, "", data, 0);
     }
 
     /**

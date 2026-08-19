@@ -1,0 +1,4 @@
+仅返回一个 JSON 对象，不要 Markdown 代码块、解释、注释或额外字段。字段名、大小写、枚举、必填字段和数据类型必须严格符合以下 JSON Schema：
+
+{schemaJson}
+{fewShotSection}

@@ -1,4 +1,0 @@
-【功能】暂停当前面试会话。
-【任务】保留已完成题目、评价、阶段和上下文，不生成最终评价，不推进下一题。
-【输出格式】通信外层必须是协议 JSON；finalData 固定包含 type=INTERVIEW_PAUSED、status=PAUSED、stateVersion（非负整数）和 content（string）。不得增加字段。
-【示例】{"type":"INTERVIEW_PAUSED","status":"PAUSED","stateVersion":3,"content":"面试已暂停，可稍后继续。"}

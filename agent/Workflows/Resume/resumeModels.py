@@ -27,7 +27,7 @@ class ResumeIssue(BaseModel):
 class ResumeEvaluation(BaseModel):
     """复用参考项目的完整简历评估维度，所有结论必须基于已解析文本。"""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     overallScore: int = Field(ge=0, le=100)
     contentScore: int = Field(ge=0, le=100)
