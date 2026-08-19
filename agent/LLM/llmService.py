@@ -112,16 +112,11 @@ class LlmService:
         for attempt in range(self.retryCount + 1):
             try:
                 client, model = await self.getClient()
-                requestOptions: dict[str, object] = {
-                    "model": model,
-                    "messages": messages,
-                    "temperature": temperature,
-                }
                 response = await asyncio.wait_for(
-                    client.chat.completions.create(**requestOptions),
+                    model.ainvoke(messages),
                     timeout=self.timeoutSeconds,
                 )
-                content = response.choices[0].message.content if response.choices else None
+                content = self._messageContent(response)
                 if not content:
                     raise LlmOutputSchemaError("模型返回空内容")
                 return content
@@ -147,17 +142,44 @@ class LlmService:
             raise lastError
         raise LlmProviderUnavailableError("大模型调用失败") from lastError
 
-    async def getClient(self) -> tuple[Any, str]:
-        """惰性创建 OpenAI 异步客户端，配置缺失时抛出统一配置异常。"""
+    async def getClient(self) -> tuple[Any, Any]:
+        """使用与参考项目一致的 ChatOpenAI 创建 OpenAI-compatible 聊天模型。"""
         if self.client is None:
             try:
-                from openai import AsyncOpenAI
+                from langchain_openai import ChatOpenAI
             except ImportError as error:
-                raise LlmProviderUnavailableError("缺少 openai SDK") from error
+                raise LlmProviderUnavailableError("缺少 langchain-openai SDK") from error
             baseUrl, model, apiKey = self.settings.requireOpenAiConfiguration()
-            self.client = AsyncOpenAI(base_url=baseUrl, api_key=apiKey)
+            options: dict[str, object] = {
+                "model": model,
+                "api_key": apiKey,
+                "temperature": self.settings.model_temperature,
+                "timeout": self.settings.request_timeout_seconds,
+                "max_retries": 0,
+            }
+            if baseUrl:
+                options["base_url"] = baseUrl
+            if self.settings.model_max_tokens is not None:
+                options["max_tokens"] = self.settings.model_max_tokens
+            self.client = ChatOpenAI(**options)
             self.model = model
-        return self.client, self.model
+        return self.client, self.client
+
+    @staticmethod
+    def _messageContent(response: Any) -> str | None:
+        """兼容 ChatOpenAI AIMessage 的字符串和多段内容返回格式。"""
+        content = getattr(response, "content", response)
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            fragments = []
+            for item in content:
+                if isinstance(item, str):
+                    fragments.append(item)
+                elif isinstance(item, dict) and isinstance(item.get("text"), str):
+                    fragments.append(item["text"])
+            return "".join(fragments) or None
+        return None
 
     def mapProviderError(self, error: Exception) -> AgentException:
         """将供应商 HTTP 错误映射为对 Java 层稳定的 Agent 状态码。"""
@@ -179,7 +201,11 @@ class LlmService:
     async def close(self) -> None:
         """关闭已创建的 OpenAI 客户端，供应用关闭生命周期释放连接。"""
         if self.client is not None:
-            await self.client.close()
+            close = getattr(self.client, "aclose", None) or getattr(self.client, "close", None)
+            if close is not None:
+                result = close()
+                if hasattr(result, "__await__"):
+                    await result
             self.client = None
         if self.embeddingClient is not None:
             await self.embeddingClient.close()

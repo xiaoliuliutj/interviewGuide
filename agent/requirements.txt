@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 pydantic
 openai
+langchain-openai==0.3.4
 asyncpg
 redis
 aio-pika

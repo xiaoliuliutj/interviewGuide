@@ -25,20 +25,29 @@ class AgentSettings:
     embedding_model: str | None
     embedding_api_key: str | None
     embedding_dimensions: int
+    model_temperature: float
+    model_max_tokens: int | None
+    request_timeout_seconds: float
 
     @classmethod
     def from_environment(cls) -> "AgentSettings":
+        # 同时兼容参考项目的 MODEL_* 命名，便于沿用已验证的部署配置。
+        read = lambda primary, alias=None: os.getenv(primary) or (os.getenv(alias) if alias else None)
         return cls(
             redis_url=os.getenv("INTERVIEW_GUIDE_REDIS_URL"),
             rabbitmq_url=os.getenv("INTERVIEW_GUIDE_RABBITMQ_URL"),
             postgres_url=os.getenv("INTERVIEW_GUIDE_POSTGRES_URL"),
-            openai_base_url=os.getenv("INTERVIEW_GUIDE_OPENAI_BASE_URL"),
-            openai_model=os.getenv("INTERVIEW_GUIDE_OPENAI_MODEL"),
-            openai_api_key=os.getenv("INTERVIEW_GUIDE_OPENAI_API_KEY"),
+            openai_base_url=read("INTERVIEW_GUIDE_OPENAI_BASE_URL", "MODEL_BASE_URL"),
+            openai_model=read("INTERVIEW_GUIDE_OPENAI_MODEL", "MODEL_NAME"),
+            openai_api_key=read("INTERVIEW_GUIDE_OPENAI_API_KEY", "MODEL_API_KEY"),
             embedding_base_url=os.getenv("INTERVIEW_GUIDE_EMBEDDING_BASE_URL"),
             embedding_model=os.getenv("INTERVIEW_GUIDE_EMBEDDING_MODEL"),
             embedding_api_key=os.getenv("INTERVIEW_GUIDE_EMBEDDING_API_KEY"),
             embedding_dimensions=int(os.getenv("INTERVIEW_GUIDE_EMBEDDING_DIMENSIONS", "1536")),
+            model_temperature=float(read("INTERVIEW_GUIDE_OPENAI_TEMPERATURE", "MODEL_TEMPERATURE") or "0.2"),
+            model_max_tokens=(int(read("INTERVIEW_GUIDE_OPENAI_MAX_TOKENS", "MODEL_MAX_TOKENS"))
+                              if read("INTERVIEW_GUIDE_OPENAI_MAX_TOKENS", "MODEL_MAX_TOKENS") else None),
+            request_timeout_seconds=float(read("INTERVIEW_GUIDE_OPENAI_TIMEOUT_SECONDS", "REQUEST_TIMEOUT_SECONDS") or "60"),
         )
 
     def require_redis_url(self) -> str:
