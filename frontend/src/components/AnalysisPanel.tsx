@@ -176,11 +176,13 @@ export default function AnalysisPanel({
             <AlertCircle className="w-8 h-8 text-red-500 dark:text-red-400"/>
         </div>
           <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">分析失败</h3>
-          <p className="text-slate-500 dark:text-slate-400 mb-4">AI 服务暂时不可用，请稍后重试</p>
-        {(analyzeError || analysis?.summary) && (
+          <p className="text-slate-500 dark:text-slate-400 mb-4">
+            {analyzeError || analysis?.summary || 'AI 服务暂时不可用，请稍后重试'}
+          </p>
+        {analyzeError && analysis?.summary && analysis.summary !== analyzeError && (
             <div
                 className="mt-4 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-left mb-4">
-              <p className="text-sm text-red-600 dark:text-red-400">{analyzeError || analysis.summary}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{analysis.summary}</p>
           </div>
         )}
         {onReanalyze && (
