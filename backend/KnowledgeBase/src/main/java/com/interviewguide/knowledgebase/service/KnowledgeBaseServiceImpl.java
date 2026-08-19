@@ -281,6 +281,8 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 mapper.updateById(entity);
             } else if ("FAILED".equals(status)) {
                 entity.setStatus("INDEX_FAILED");
+                Object errorMessage = response.data().get("errorMessage");
+                entity.setVectorError(errorMessage == null ? "Agent 知识库索引失败" : String.valueOf(errorMessage));
                 mapper.updateById(entity);
             }
         } catch (Exception ignored) {
@@ -366,6 +368,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         result.put("fileSize", entity.getFileSize());
         result.put("status", entity.getStatus());
         result.put("vectorStatus", toFrontendStatus(entity.getStatus()));
+        result.put("vectorError", entity.getVectorError());
         result.put("contentType", entity.getContentType());
         result.put("sourceUrl", entity.getSourceUrl());
         result.put("sourceTitle", entity.getSourceTitle());

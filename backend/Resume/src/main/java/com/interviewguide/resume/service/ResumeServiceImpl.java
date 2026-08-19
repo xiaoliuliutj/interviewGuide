@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.interviewguide.agent.dto.AgentOperationRequest;
 import com.interviewguide.agent.service.AgentCallService;
+import com.interviewguide.agent.service.AgentServiceException;
 import com.interviewguide.agent.service.AgentPromptService;
 import com.interviewguide.agent.service.AgentRequestFactory;
 import com.interviewguide.resume.entity.ResumeAnalysisEntity;
@@ -132,6 +133,10 @@ public class ResumeServiceImpl implements ResumeService {
                 AgentOperationRequest request = requestFactory.create(userId, resumeId, resume.getAgentRunId(), "capability", "resume.status", "",
                         Map.of("resumeRunId", resume.getAgentRunId()), 0);
                 applyAgentStatus(resume, analysis, agentCallService.execute(request).data());
+                resumeMapper.updateById(resume);
+                analysisMapper.updateById(analysis);
+            } catch (AgentServiceException error) {
+                applyAgentFailure(resume, analysis, error);
                 resumeMapper.updateById(resume);
                 analysisMapper.updateById(analysis);
             } catch (RuntimeException ignored) {
@@ -276,6 +281,10 @@ public class ResumeServiceImpl implements ResumeService {
                         applyAgentStatus(resume, analysis, agentCallService.execute(request).data());
                         resumeMapper.updateById(resume);
                         analysisMapper.updateById(analysis);
+                    } catch (AgentServiceException error) {
+                        applyAgentFailure(resume, analysis, error);
+                        resumeMapper.updateById(resume);
+                        analysisMapper.updateById(analysis);
                     } catch (RuntimeException ignored) {
                         // 网络或 Agent 暂时不可用时保留 PROCESSING，等待下一轮对账。
                     }
@@ -298,6 +307,18 @@ public class ResumeServiceImpl implements ResumeService {
             }
         }
         if (data != null && data.get("errorMessage") != null) analysis.setErrorMessage(String.valueOf(data.get("errorMessage")));
+    }
+
+    /** 将同步 Agent 失败响应中的 data.errorMessage 落库，供列表和详情接口返回给前端。 */
+    private void applyAgentFailure(ResumeEntity resume, ResumeAnalysisEntity analysis, AgentServiceException error) {
+        resume.setStatus("FAILED");
+        resume.setUpdatedAt(Instant.now());
+        analysis.setStatus("FAILED");
+        analysis.setUpdatedAt(Instant.now());
+        Map<String, Object> data = error.getData();
+        Object detail = data == null ? null : data.get("errorMessage");
+        String message = detail == null ? error.getMessage() : String.valueOf(detail);
+        analysis.setErrorMessage(message == null || message.isBlank() ? "Agent 处理失败" : message);
     }
 
     /** 读取单份简历的分析投影。 */

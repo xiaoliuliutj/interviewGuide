@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
     source_hash VARCHAR(255),
     file_size BIGINT NOT NULL,
     status VARCHAR(32) NOT NULL,
+    vector_error TEXT,
     retry_count INTEGER NOT NULL DEFAULT 0,
     next_retry_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,

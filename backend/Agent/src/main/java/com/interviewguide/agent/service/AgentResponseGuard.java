@@ -18,7 +18,7 @@ public class AgentResponseGuard {
             String message = response.error() == null || response.error().message() == null
                     ? ResultStatus.descriptionOf(response.statusCode()) : response.error().message();
             boolean retryable = response.error() != null && response.error().retryable();
-            throw new AgentServiceException(response.statusCode(), message, retryable);
+            throw new AgentServiceException(response.statusCode(), message, retryable, response.data());
         }
         if (!request.context().requestId().equals(response.requestId())
                 || !request.context().runId().equals(response.runId())

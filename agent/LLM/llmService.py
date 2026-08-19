@@ -117,8 +117,6 @@ class LlmService:
                     "messages": messages,
                     "temperature": temperature,
                 }
-                if jsonMode:
-                    requestOptions["response_format"] = {"type": "json_object"}
                 response = await asyncio.wait_for(
                     client.chat.completions.create(**requestOptions),
                     timeout=self.timeoutSeconds,

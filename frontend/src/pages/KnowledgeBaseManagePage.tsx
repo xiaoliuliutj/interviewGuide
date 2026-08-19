@@ -539,9 +539,16 @@ export default function KnowledgeBaseManagePage({ onUpload }: KnowledgeBaseManag
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <StatusIcon status={kb.vectorStatus} />
+                      <div className="min-w-0">
                         <span className="text-sm text-slate-600 dark:text-slate-300">
-                        {getStatusText(kb.vectorStatus)}
-                      </span>
+                          {getStatusText(kb.vectorStatus)}
+                        </span>
+                        {kb.vectorError && (kb.vectorStatus === 'FAILED' || kb.vectorStatus === 'DELETE_FAILED') && (
+                          <p className="mt-1 max-w-xs truncate text-xs text-red-500" title={kb.vectorError}>
+                            {kb.vectorError}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </td>
                     <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">

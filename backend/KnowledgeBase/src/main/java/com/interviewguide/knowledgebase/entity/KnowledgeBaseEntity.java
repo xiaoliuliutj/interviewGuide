@@ -33,6 +33,8 @@ public class KnowledgeBaseEntity {
     @TableField("file_size")
     private Long fileSize;
     private String status;
+    @TableField("vector_error")
+    private String vectorError;
     @TableField("retry_count")
     private Integer retryCount;
     @TableField("next_retry_at")
@@ -70,6 +72,8 @@ public class KnowledgeBaseEntity {
     public void setFileSize(Long value) { this.fileSize = value; }
     public String getStatus() { return status; }
     public void setStatus(String value) { this.status = value; }
+    public String getVectorError() { return vectorError; }
+    public void setVectorError(String value) { this.vectorError = value; }
     public Integer getRetryCount() { return retryCount; }
     public void setRetryCount(Integer value) { this.retryCount = value; }
     public Instant getNextRetryAt() { return nextRetryAt; }
