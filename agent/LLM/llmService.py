@@ -84,15 +84,48 @@ class LlmService:
         )
 
     async def requestJson(self, messages: list[dict[str, str]], temperature: float) -> dict[str, object]:
-        """请求 JSON 对象响应，并校验模型输出的顶层结构。"""
-        content = await self.requestCompletion(messages, temperature, jsonMode=True)
-        try:
-            payload = json.loads(content)
-        except json.JSONDecodeError as error:
-            raise LlmOutputSchemaError("模型返回的内容不是合法 JSON") from error
-        if not isinstance(payload, dict):
-            raise LlmOutputSchemaError("模型返回 JSON 顶层必须是对象")
-        return payload
+        """按参考项目方式校正结构化输出：清理代码块并有限次数反馈错误重试。"""
+        workingMessages = list(messages)
+        maxCorrections = 2
+        lastError: Exception | None = None
+        for correctionAttempt in range(maxCorrections + 1):
+            content = await self.requestCompletion(workingMessages, temperature, jsonMode=True)
+            try:
+                payload = json.loads(self._stripJsonFence(content))
+                if not isinstance(payload, dict):
+                    raise TypeError("JSON 顶层必须是对象")
+                return payload
+            except (json.JSONDecodeError, TypeError, ValueError) as error:
+                lastError = error
+                logger.warning(
+                    "模型结构化输出校验失败，第 %s 次，原因=%s，原始内容=%s",
+                    correctionAttempt + 1,
+                    error,
+                    content[:1000],
+                )
+                if correctionAttempt == maxCorrections:
+                    break
+                workingMessages.extend([
+                    {"role": "assistant", "content": content},
+                    {
+                        "role": "user",
+                        "content": (
+                            "上一轮输出未通过 JSON 校验。请只修复格式并重新返回完整 JSON 对象，"
+                            "不得输出 Markdown 代码块、解释文字、注释或额外字段。"
+                            f"校验错误：{error}"
+                        ),
+                    },
+                ])
+        raise LlmOutputSchemaError("模型返回的内容不是合法 JSON") from lastError
+
+    @staticmethod
+    def _stripJsonFence(content: str) -> str:
+        """兼容参考项目，移除模型包裹 JSON 的 Markdown 代码块标记。"""
+        text = content.strip()
+        if text.startswith("```") and text.endswith("```"):
+            lines = text.splitlines()
+            return "\n".join(lines[1:-1]).strip()
+        return text
 
     async def requestText(self, messages: list[dict[str, str]], temperature: float) -> str:
         """请求普通文本响应，并拒绝空文本以防止空摘要或空结论被持久化。"""
